@@ -63,6 +63,8 @@ public partial class SaveCharacterDialog : System.Windows.Window
 
     private bool ValidateInput()
     {
+        // InitializeComponentの途中でTextChangedが発生しても、
+        // まだ生成されていないコントロールへアクセスしないようにします。
         if (!IsInitialized)
         {
             return false;

@@ -14,6 +14,8 @@ public sealed class MainViewModel : ObservableObject
     private readonly SpriteFileLoader _spriteFileLoader;
     private readonly ImageAnalysisService _imageAnalysisService;
     private readonly CharacterExportService _characterExportService;
+
+    // 置換内容と履歴はキャラクターごとに分離し、同じ元色を持つ別キャラへ波及させません。
     private readonly Dictionary<CharacterGroup, CharacterEditState> _editStates = [];
     private CharacterGroup? _selectedCharacter;
     private SpriteFile? _selectedSpriteFile;
@@ -99,6 +101,7 @@ public sealed class MainViewModel : ObservableObject
         {
             var groups = _spriteFileLoader.LoadFromFolder(folderPath);
 
+            // フォルダーを切り替えた時点で、前の素材に対する編集履歴は破棄します。
             CharacterGroups.Clear();
             _editStates.Clear();
             foreach (var group in groups)
@@ -212,6 +215,8 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
+        // 表示中の色へ既に変換されている元色もまとめて次の色へ向けます。
+        // 例: 赤→青の後に青→緑を行うと、元の赤と青の両方が緑になります。
         var affectedSources = state.Replacements
             .Where(entry => entry.Value == paletteColor.ArgbKey)
             .Select(entry => entry.Key)
@@ -226,6 +231,8 @@ public sealed class MainViewModel : ObservableObject
 
         foreach (var sourceArgb in affectedSources)
         {
+            // nullは「この操作以前は置換マップに未登録だった」ことを表します。
+            // UNDO時は値を戻すのではなく、そのキー自体を削除します。
             operation.PreviousValues[sourceArgb] =
                 state.Replacements.TryGetValue(sourceArgb, out var previousTarget)
                     ? previousTarget
@@ -247,6 +254,7 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
+        // 操作前の値をキーごとに復元します。未登録だったキーは削除します。
         foreach (var (sourceArgb, previousTarget) in operation.PreviousValues)
         {
             if (previousTarget.HasValue)
@@ -272,6 +280,7 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
+        // UNDOした操作で影響を受けた全元色を、同じ置換先へ再適用します。
         foreach (var sourceArgb in operation.PreviousValues.Keys)
         {
             state.Replacements[sourceArgb] = operation.TargetArgb;
@@ -311,6 +320,7 @@ public sealed class MainViewModel : ObservableObject
                 SelectedCharacter,
                 dialog.NewCharacterName,
                 dialog.OutputFolder);
+            // 複数ファイルのうち1つでも既存なら、書き込みを始める前にまとめて確認します。
             var existingPaths = outputPaths
                 .Where(File.Exists)
                 .ToList();
@@ -380,6 +390,8 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
+        // 変換済み画像へ再変換すると誤差や置換漏れが生じるため、
+        // 毎回元PNGを読み、現在の置換マップを最初から適用します。
         var originalImage = _imageAnalysisService.LoadImage(SelectedSpriteFile.FilePath);
         var state = GetSelectedEditState();
         var displayedImage = state is null
@@ -422,6 +434,7 @@ public sealed class MainViewModel : ObservableObject
 
     private sealed class CharacterEditState
     {
+        // キーと値はいずれも 0xAARRGGBB 形式です。
         public Dictionary<uint, uint> Replacements { get; } = [];
 
         public Stack<ColorReplacementOperation> UndoStack { get; } = [];
@@ -431,8 +444,10 @@ public sealed class MainViewModel : ObservableObject
 
     private sealed class ColorReplacementOperation
     {
+        // REDO時に全対象色へ再設定する置換先です。
         public required uint TargetArgb { get; init; }
 
+        // UNDOで復元する操作前の値です。nullは操作前にキーが存在しなかったことを示します。
         public Dictionary<uint, uint?> PreviousValues { get; } = [];
     }
 

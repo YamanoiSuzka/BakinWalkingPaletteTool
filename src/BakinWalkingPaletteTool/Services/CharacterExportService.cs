@@ -4,8 +4,14 @@ using BakinWalkingPaletteTool.Models;
 
 namespace BakinWalkingPaletteTool.Services;
 
+/// <summary>
+/// 選択キャラクターに属する全アニメーションを、色置換済みPNGとして出力します。
+/// </summary>
 public sealed class CharacterExportService(ImageAnalysisService imageAnalysisService)
 {
+    /// <summary>
+    /// キャラクター名だけを差し替え、アニメーション名を維持した出力パスを作ります。
+    /// </summary>
     public IReadOnlyList<string> GetOutputPaths(
         CharacterGroup character,
         string newCharacterName,
@@ -18,6 +24,9 @@ public sealed class CharacterExportService(ImageAnalysisService imageAnalysisSer
             .ToList();
     }
 
+    /// <summary>
+    /// 全アニメーションへ同じ置換マップを適用し、PNG形式で保存します。
+    /// </summary>
     public IReadOnlyList<string> Export(
         CharacterGroup character,
         string newCharacterName,
@@ -38,6 +47,8 @@ public sealed class CharacterExportService(ImageAnalysisService imageAnalysisSer
             newCharacterName,
             outputFolder);
 
+        // Windowsではファイル名の大文字小文字を区別しないため、
+        // OrdinalIgnoreCaseで出力先の重複を事前に検出します。
         if (outputPaths.Distinct(StringComparer.OrdinalIgnoreCase).Count()
             != outputPaths.Count)
         {
@@ -49,6 +60,7 @@ public sealed class CharacterExportService(ImageAnalysisService imageAnalysisSer
         {
             var sourceFile = character.Files[index];
             var outputPath = outputPaths[index];
+            // プレビュー画像を使い回さず、各アニメーションの元PNGへ同じ変換を適用します。
             var originalImage = imageAnalysisService.LoadImage(sourceFile.FilePath);
             var convertedImage = imageAnalysisService.ApplyReplacements(
                 originalImage,
@@ -68,4 +80,3 @@ public sealed class CharacterExportService(ImageAnalysisService imageAnalysisSer
         return outputPaths;
     }
 }
-
