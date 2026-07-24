@@ -8,6 +8,15 @@
         MinWidth="800"
         MinHeight="520"
         WindowStartupLocation="CenterScreen">
+    <Window.InputBindings>
+        <KeyBinding Key="Z"
+                    Modifiers="Control"
+                    Command="{Binding UndoCommand}" />
+        <KeyBinding Key="Y"
+                    Modifiers="Control"
+                    Command="{Binding RedoCommand}" />
+    </Window.InputBindings>
+
     <Grid Background="#FFF5F6F8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -179,9 +188,27 @@
                         <RowDefinition Height="2*" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock FontSize="16"
-                               FontWeight="SemiBold"
-                               Text="{Binding SelectedSpriteFile.FileName, TargetNullValue=画像を選択してください}" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock VerticalAlignment="Center"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Text="{Binding SelectedSpriteFile.FileName, TargetNullValue=画像を選択してください}" />
+                        <Button Grid.Column="1"
+                                Margin="8,0,0,0"
+                                MinWidth="82"
+                                Command="{Binding UndoCommand}"
+                                Content="↶ UNDO" />
+                        <Button Grid.Column="2"
+                                Margin="8,0,0,0"
+                                MinWidth="82"
+                                Command="{Binding RedoCommand}"
+                                Content="↷ REDO" />
+                    </Grid>
 
                     <Border Grid.Row="1"
                             Margin="0,12,0,20"
@@ -243,13 +270,15 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="{x:Type models:PaletteColor}">
-                                    <Border Width="150"
+                                    <Button Width="150"
                                             Margin="0,0,8,8"
                                             Padding="7"
+                                            HorizontalContentAlignment="Stretch"
                                             Background="#FFF8FAFC"
                                             BorderBrush="#FFE4E7EC"
-                                            BorderThickness="1"
-                                            CornerRadius="4">
+                                            Command="{Binding DataContext.SelectPaletteColorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"
+                                            ToolTip="クリックして、このキャラクターの使用色を一括置換">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="34" />
@@ -271,7 +300,7 @@
                                                            Text="{Binding PixelCount, StringFormat={}{0:N0} px}" />
                                             </StackPanel>
                                         </Grid>
-                                    </Border>
+                                    </Button>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

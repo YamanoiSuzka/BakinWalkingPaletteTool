@@ -2,16 +2,25 @@ using System.Windows.Input;
 
 namespace BakinWalkingPaletteTool.ViewModels;
 
-public sealed class RelayCommand(Action execute) : ICommand
+public sealed class RelayCommand : ICommand
 {
-    public event EventHandler? CanExecuteChanged
+    private readonly Action _execute;
+    private readonly Func<bool>? _canExecute;
+
+    public RelayCommand(Action execute, Func<bool>? canExecute = null)
     {
-        add { }
-        remove { }
+        _execute = execute;
+        _canExecute = canExecute;
     }
 
-    public bool CanExecute(object? parameter) => true;
+    public event EventHandler? CanExecuteChanged;
 
-    public void Execute(object? parameter) => execute();
+    public bool CanExecute(object? parameter) => _canExecute?.Invoke() ?? true;
+
+    public void Execute(object? parameter) => _execute();
+
+    public void NotifyCanExecuteChanged()
+    {
+        CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+    }
 }
-
