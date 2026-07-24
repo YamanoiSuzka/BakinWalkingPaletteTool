@@ -13,6 +13,7 @@ public sealed class MainViewModel : ObservableObject
 {
     private readonly SpriteFileLoader _spriteFileLoader;
     private readonly ImageAnalysisService _imageAnalysisService;
+    private readonly CharacterExportService _characterExportService;
     private readonly Dictionary<CharacterGroup, CharacterEditState> _editStates = [];
     private CharacterGroup? _selectedCharacter;
     private SpriteFile? _selectedSpriteFile;
@@ -21,22 +22,29 @@ public sealed class MainViewModel : ObservableObject
     private string _statusMessage = "フォルダーを選択してください";
 
     public MainViewModel()
-        : this(new SpriteFileLoader(), new ImageAnalysisService())
+        : this(
+            new SpriteFileLoader(),
+            new ImageAnalysisService(),
+            new CharacterExportService(new ImageAnalysisService()))
     {
     }
 
     public MainViewModel(
         SpriteFileLoader spriteFileLoader,
-        ImageAnalysisService imageAnalysisService)
+        ImageAnalysisService imageAnalysisService,
+        CharacterExportService characterExportService)
     {
         _spriteFileLoader = spriteFileLoader;
         _imageAnalysisService = imageAnalysisService;
+        _characterExportService = characterExportService;
         SelectFolderCommand = new RelayCommand(SelectFolder);
         SelectSpriteCommand = new ParameterizedRelayCommand<SpriteFile>(SelectSprite);
         SelectPaletteColorCommand =
             new ParameterizedRelayCommand<PaletteColor>(SelectPaletteColor);
         UndoCommand = new RelayCommand(Undo, CanUndo);
         RedoCommand = new RelayCommand(Redo, CanRedo);
+        SaveCharacterCommand =
+            new RelayCommand(SaveCharacter, () => SelectedCharacter is not null);
     }
 
     public ObservableCollection<CharacterGroup> CharacterGroups { get; } = [];
@@ -82,6 +90,8 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand UndoCommand { get; }
 
     public RelayCommand RedoCommand { get; }
+
+    public RelayCommand SaveCharacterCommand { get; }
 
     public void LoadFolder(string folderPath)
     {
@@ -272,6 +282,84 @@ public sealed class MainViewModel : ObservableObject
         UpdateHistoryCommands();
     }
 
+    private void SaveCharacter()
+    {
+        if (SelectedCharacter is null)
+        {
+            return;
+        }
+
+        var dialog = new SaveCharacterDialog(
+            SelectedCharacter.CharacterName,
+            $"{SelectedCharacter.CharacterName}_variant",
+            Directory.Exists(CurrentFolder)
+                ? CurrentFolder
+                : Environment.GetFolderPath(
+                    Environment.SpecialFolder.MyPictures))
+        {
+            Owner = System.Windows.Application.Current.MainWindow
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            var outputPaths = _characterExportService.GetOutputPaths(
+                SelectedCharacter,
+                dialog.NewCharacterName,
+                dialog.OutputFolder);
+            var existingPaths = outputPaths
+                .Where(File.Exists)
+                .ToList();
+
+            if (existingPaths.Count > 0)
+            {
+                var confirmation = System.Windows.MessageBox.Show(
+                    $"{existingPaths.Count}個のファイルが既に存在します。上書きしますか？",
+                    "上書きの確認",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (confirmation != MessageBoxResult.Yes)
+                {
+                    return;
+                }
+            }
+
+            var replacements = GetSelectedEditState()?.Replacements
+                ?? new Dictionary<uint, uint>();
+            var savedPaths = _characterExportService.Export(
+                SelectedCharacter,
+                dialog.NewCharacterName,
+                dialog.OutputFolder,
+                replacements);
+
+            StatusMessage =
+                $"{dialog.NewCharacterName}：{savedPaths.Count}ファイルを保存しました";
+            System.Windows.MessageBox.Show(
+                $"{savedPaths.Count}個のアニメーション画像を保存しました。\n\n{dialog.OutputFolder}",
+                "保存完了",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception exception) when (
+            exception is IOException
+            or UnauthorizedAccessException
+            or ArgumentException
+            or InvalidOperationException
+            or NotSupportedException)
+        {
+            System.Windows.MessageBox.Show(
+                exception.Message,
+                "保存に失敗しました",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
     private bool CanUndo() => GetSelectedEditState()?.UndoStack.Count > 0;
 
     private bool CanRedo() => GetSelectedEditState()?.RedoStack.Count > 0;
@@ -316,6 +404,7 @@ public sealed class MainViewModel : ObservableObject
     {
         UndoCommand.NotifyCanExecuteChanged();
         RedoCommand.NotifyCanExecuteChanged();
+        SaveCharacterCommand.NotifyCanExecuteChanged();
     }
 
     private void ClearPreview()

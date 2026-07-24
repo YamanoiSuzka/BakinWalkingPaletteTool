@@ -193,6 +193,7 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock VerticalAlignment="Center"
                                    FontSize="16"
@@ -208,6 +209,10 @@
                                 MinWidth="82"
                                 Command="{Binding RedoCommand}"
                                 Content="↷ REDO" />
+                        <Button Grid.Column="3"
+                                Margin="12,0,0,0"
+                                Command="{Binding SaveCharacterCommand}"
+                                Content="キャラクターを別名保存..." />
                     </Grid>
 
                     <Border Grid.Row="1"
