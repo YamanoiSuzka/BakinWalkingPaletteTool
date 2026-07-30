@@ -131,4 +131,141 @@ public sealed class ImageAnalysisService
         result.Freeze();
         return result;
     }
+
+    /// <summary>
+    /// 指定座標の色を 0xAARRGGBB 形式で取得します。
+    /// プレビュー画像のクリック位置からパレット色を選ぶために使用します。
+    /// </summary>
+    public uint GetArgbAt(BitmapSource source, int x, int y)
+    {
+        if (x < 0 || x >= source.PixelWidth || y < 0 || y >= source.PixelHeight)
+        {
+            throw new ArgumentOutOfRangeException(nameof(x));
+        }
+
+        var converted = new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
+        var pixel = new byte[4];
+        converted.CopyPixels(
+            new System.Windows.Int32Rect(x, y, 1, 1),
+            pixel,
+            4,
+            0);
+
+        return ((uint)pixel[3] << 24)
+            | ((uint)pixel[2] << 16)
+            | ((uint)pixel[1] << 8)
+            | pixel[0];
+    }
+
+    /// <summary>
+    /// ARGB色へHSVベースの相対調整を適用します。
+    /// 透明度は正の値ほど透明になるよう、アルファ値とは逆方向に計算します。
+    /// </summary>
+    public uint AdjustArgb(
+        uint argb,
+        double hueShift,
+        double saturationAdjustment,
+        double brightnessAdjustment,
+        double transparencyAdjustment)
+    {
+        var alpha = (byte)(argb >> 24);
+        var red = (byte)(argb >> 16);
+        var green = (byte)(argb >> 8);
+        var blue = (byte)argb;
+
+        RgbToHsv(red, green, blue, out var hue, out var saturation, out var value);
+        hue = (hue + hueShift) % 360;
+        if (hue < 0)
+        {
+            hue += 360;
+        }
+
+        saturation = Math.Clamp(
+            saturation + saturationAdjustment / 100.0,
+            0,
+            1);
+        value = Math.Clamp(
+            value + brightnessAdjustment / 100.0,
+            0,
+            1);
+
+        HsvToRgb(hue, saturation, value, out red, out green, out blue);
+        alpha = (byte)Math.Round(Math.Clamp(
+            alpha - transparencyAdjustment / 100.0 * byte.MaxValue,
+            0,
+            byte.MaxValue));
+
+        return ((uint)alpha << 24)
+            | ((uint)red << 16)
+            | ((uint)green << 8)
+            | blue;
+    }
+
+    private static void RgbToHsv(
+        byte red,
+        byte green,
+        byte blue,
+        out double hue,
+        out double saturation,
+        out double value)
+    {
+        var r = red / 255.0;
+        var g = green / 255.0;
+        var b = blue / 255.0;
+        var max = Math.Max(r, Math.Max(g, b));
+        var min = Math.Min(r, Math.Min(g, b));
+        var delta = max - min;
+
+        hue = 0;
+        if (delta > 0)
+        {
+            if (max == r)
+            {
+                hue = 60 * (((g - b) / delta) % 6);
+            }
+            else if (max == g)
+            {
+                hue = 60 * ((b - r) / delta + 2);
+            }
+            else
+            {
+                hue = 60 * ((r - g) / delta + 4);
+            }
+        }
+
+        if (hue < 0)
+        {
+            hue += 360;
+        }
+
+        saturation = max == 0 ? 0 : delta / max;
+        value = max;
+    }
+
+    private static void HsvToRgb(
+        double hue,
+        double saturation,
+        double value,
+        out byte red,
+        out byte green,
+        out byte blue)
+    {
+        var chroma = value * saturation;
+        var x = chroma * (1 - Math.Abs(hue / 60 % 2 - 1));
+        var match = value - chroma;
+
+        var (r, g, b) = hue switch
+        {
+            < 60 => (chroma, x, 0.0),
+            < 120 => (x, chroma, 0.0),
+            < 180 => (0.0, chroma, x),
+            < 240 => (0.0, x, chroma),
+            < 300 => (x, 0.0, chroma),
+            _ => (chroma, 0.0, x)
+        };
+
+        red = (byte)Math.Round((r + match) * byte.MaxValue);
+        green = (byte)Math.Round((g + match) * byte.MaxValue);
+        blue = (byte)Math.Round((b + match) * byte.MaxValue);
+    }
 }

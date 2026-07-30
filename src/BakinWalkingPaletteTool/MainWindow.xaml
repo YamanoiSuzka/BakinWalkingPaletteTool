@@ -183,7 +183,8 @@
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="3*" />
+                        <RowDefinition Height="2*" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="2*" />
                     </Grid.RowDefinitions>
@@ -243,28 +244,148 @@
                                 </DrawingBrush.Drawing>
                             </DrawingBrush>
                         </Border.Background>
-                        <Image Margin="16"
+                        <Image x:Name="PreviewImageControl"
+                               Margin="16"
                                Source="{Binding PreviewImage}"
                                Stretch="Uniform"
                                RenderOptions.BitmapScalingMode="NearestNeighbor"
-                               SnapsToDevicePixels="True" />
+                               SnapsToDevicePixels="True"
+                               MouseLeftButtonDown="PreviewImage_MouseLeftButtonDown"
+                               ToolTip="クリックしたピクセルの色を選択" />
                     </Border>
 
                     <Grid Grid.Row="2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock FontSize="16"
                                    FontWeight="SemiBold"
-                                   Text="カラーパレット" />
+                                   Text="カラーパレット（右クリックで複数選択）" />
                         <TextBlock Grid.Column="1"
+                                   Margin="12,0,0,0"
+                                   VerticalAlignment="Center"
+                                   Foreground="#FF667085"
+                                   Text="{Binding SelectedColorCount, StringFormat=選択 {0}色}" />
+                        <TextBlock Grid.Column="2"
+                                   Margin="12,0,0,0"
                                    VerticalAlignment="Center"
                                    Foreground="#FF667085"
                                    Text="{Binding PaletteColors.Count, StringFormat={}{0}色}" />
+                        <CheckBox Grid.Column="3"
+                                  Margin="12,0,0,0"
+                                  VerticalAlignment="Center"
+                                  Content="全選択 / 全解除"
+                                  IsChecked="{Binding AreAllPaletteColorsSelected, Mode=TwoWay}" />
                     </Grid>
 
-                    <ScrollViewer Grid.Row="3"
+                    <Border Grid.Row="3"
+                            Margin="0,10,0,0"
+                            Padding="10"
+                            Background="#FFF8FAFC"
+                            BorderBrush="#FFE4E7EC"
+                            BorderThickness="1"
+                            CornerRadius="4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="66" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="62" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock VerticalAlignment="Center" Text="色相" />
+                            <Slider Grid.Column="1"
+                                    Minimum="0"
+                                    Maximum="180"
+                                    TickFrequency="1"
+                                    ToolTip="値が大きくなるほど反対の色（補色）に近づきます。"
+                                    Value="{Binding HueShift, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBox Grid.Column="2"
+                                     Margin="8,1,0,1"
+                                     Padding="4,2"
+                                     HorizontalContentAlignment="Right"
+                                     ToolTip="0～180"
+                                     Text="{Binding HueShift, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <TextBlock Grid.Row="1"
+                                       VerticalAlignment="Center"
+                                       Text="彩度" />
+                            <Slider Grid.Row="1"
+                                    Grid.Column="1"
+                                    Minimum="-100"
+                                    Maximum="100"
+                                    TickFrequency="1"
+                                    ToolTip="正の値ほど鮮やかに、負の値ほどグレーに近づけます。"
+                                    Value="{Binding SaturationAdjustment, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBox Grid.Row="1"
+                                     Grid.Column="2"
+                                     Margin="8,1,0,1"
+                                     Padding="4,2"
+                                     HorizontalContentAlignment="Right"
+                                     ToolTip="-100～100"
+                                     Text="{Binding SaturationAdjustment, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <TextBlock Grid.Row="2"
+                                       VerticalAlignment="Center"
+                                       Text="明度" />
+                            <Slider Grid.Row="2"
+                                    Grid.Column="1"
+                                    Minimum="-100"
+                                    Maximum="100"
+                                    TickFrequency="1"
+                                    ToolTip="正の値ほど明るく、負の値ほど暗くします。"
+                                    Value="{Binding BrightnessAdjustment, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBox Grid.Row="2"
+                                     Grid.Column="2"
+                                     Margin="8,1,0,1"
+                                     Padding="4,2"
+                                     HorizontalContentAlignment="Right"
+                                     ToolTip="-100～100"
+                                     Text="{Binding BrightnessAdjustment, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <TextBlock Grid.Row="3"
+                                       VerticalAlignment="Center"
+                                       Text="透明度" />
+                            <Slider Grid.Row="3"
+                                    Grid.Column="1"
+                                    Minimum="-100"
+                                    Maximum="100"
+                                    TickFrequency="1"
+                                    ToolTip="正の値ほど透明に、負の値ほど不透明にします。既に不透明な色へ負の値を指定しても変化しません。"
+                                    Value="{Binding TransparencyAdjustment, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBox Grid.Row="3"
+                                     Grid.Column="2"
+                                     Margin="8,1,0,1"
+                                     Padding="4,2"
+                                     HorizontalContentAlignment="Right"
+                                     ToolTip="-100～100"
+                                     Text="{Binding TransparencyAdjustment, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <StackPanel Grid.RowSpan="4"
+                                        Grid.Column="3"
+                                        Margin="14,0,0,0"
+                                        VerticalAlignment="Center">
+                                <Button MinWidth="96"
+                                        Command="{Binding ApplyColorAdjustmentCommand}"
+                                        Content="選択色に適用" />
+                                <Button Margin="0,6,0,0"
+                                        MinWidth="96"
+                                        Command="{Binding ResetColorAdjustmentsCommand}"
+                                        Content="パラメータをリセット" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <ScrollViewer Grid.Row="4"
                                   Margin="0,10,0,0"
                                   VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{Binding PaletteColors}">
@@ -279,11 +400,25 @@
                                             Margin="0,0,8,8"
                                             Padding="7"
                                             HorizontalContentAlignment="Stretch"
-                                            Background="#FFF8FAFC"
-                                            BorderBrush="#FFE4E7EC"
                                             Command="{Binding DataContext.SelectPaletteColorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                             CommandParameter="{Binding}"
-                                            ToolTip="クリックして、このキャラクターの使用色を一括置換">
+                                            PreviewMouseRightButtonDown="PaletteButton_PreviewMouseRightButtonDown"
+                                            ToolTip="左クリック: 色を置換 / 右クリック: 複数選択">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="MinHeight" Value="42" />
+                                                <Setter Property="Background" Value="#FFF8FAFC" />
+                                                <Setter Property="BorderBrush" Value="#FFE4E7EC" />
+                                                <Setter Property="BorderThickness" Value="1" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                        <Setter Property="Background" Value="#FFDCE9FF" />
+                                                        <Setter Property="BorderBrush" Value="#FF2672D9" />
+                                                        <Setter Property="BorderThickness" Value="3" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="34" />

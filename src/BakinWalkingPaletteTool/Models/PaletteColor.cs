@@ -1,13 +1,35 @@
 using MediaColor = System.Windows.Media.Color;
 using SolidColorBrush = System.Windows.Media.SolidColorBrush;
+using System.ComponentModel;
 
 namespace BakinWalkingPaletteTool.Models;
 
-public sealed class PaletteColor
+public sealed class PaletteColor : INotifyPropertyChanged
 {
+    private bool _isSelected;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
     public required MediaColor Color { get; init; }
 
     public required int PixelCount { get; init; }
+
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected == value)
+            {
+                return;
+            }
+
+            _isSelected = value;
+            PropertyChanged?.Invoke(
+                this,
+                new PropertyChangedEventArgs(nameof(IsSelected)));
+        }
+    }
 
     public uint ArgbKey => ((uint)Color.A << 24)
         | ((uint)Color.R << 16)

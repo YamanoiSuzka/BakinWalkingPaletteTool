@@ -22,6 +22,12 @@ public sealed class MainViewModel : ObservableObject
     private BitmapSource? _previewImage;
     private string _currentFolder = "フォルダーが選択されていません";
     private string _statusMessage = "フォルダーを選択してください";
+    private bool _isUpdatingSelectAll;
+    private bool _areAllPaletteColorsSelected;
+    private double _hueShift;
+    private double _saturationAdjustment;
+    private double _brightnessAdjustment;
+    private double _transparencyAdjustment;
 
     public MainViewModel()
         : this(
@@ -47,6 +53,10 @@ public sealed class MainViewModel : ObservableObject
         RedoCommand = new RelayCommand(Redo, CanRedo);
         SaveCharacterCommand =
             new RelayCommand(SaveCharacter, () => SelectedCharacter is not null);
+        ApplyColorAdjustmentCommand =
+            new RelayCommand(ApplyColorAdjustment, CanApplyColorAdjustment);
+        ResetColorAdjustmentsCommand =
+            new RelayCommand(ResetColorAdjustments, CanResetColorAdjustments);
     }
 
     public ObservableCollection<CharacterGroup> CharacterGroups { get; } = [];
@@ -83,6 +93,79 @@ public sealed class MainViewModel : ObservableObject
         private set => SetProperty(ref _statusMessage, value);
     }
 
+    public bool AreAllPaletteColorsSelected
+    {
+        get => _areAllPaletteColorsSelected;
+        set
+        {
+            if (!SetProperty(ref _areAllPaletteColorsSelected, value)
+                || _isUpdatingSelectAll)
+            {
+                return;
+            }
+
+            SetAllPaletteColorsSelected(value);
+        }
+    }
+
+    public int SelectedColorCount => GetSelectedArgbValues().Count;
+
+    public double HueShift
+    {
+        get => _hueShift;
+        set
+        {
+            if (SetProperty(
+                ref _hueShift,
+                ClampAdjustment(value, -180, 180)))
+            {
+                UpdateAdjustmentCommands();
+            }
+        }
+    }
+
+    public double SaturationAdjustment
+    {
+        get => _saturationAdjustment;
+        set
+        {
+            if (SetProperty(
+                ref _saturationAdjustment,
+                ClampAdjustment(value, -100, 100)))
+            {
+                UpdateAdjustmentCommands();
+            }
+        }
+    }
+
+    public double BrightnessAdjustment
+    {
+        get => _brightnessAdjustment;
+        set
+        {
+            if (SetProperty(
+                ref _brightnessAdjustment,
+                ClampAdjustment(value, -100, 100)))
+            {
+                UpdateAdjustmentCommands();
+            }
+        }
+    }
+
+    public double TransparencyAdjustment
+    {
+        get => _transparencyAdjustment;
+        set
+        {
+            if (SetProperty(
+                ref _transparencyAdjustment,
+                ClampAdjustment(value, -100, 100)))
+            {
+                UpdateAdjustmentCommands();
+            }
+        }
+    }
+
     public ICommand SelectFolderCommand { get; }
 
     public ICommand SelectSpriteCommand { get; }
@@ -94,6 +177,10 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand RedoCommand { get; }
 
     public RelayCommand SaveCharacterCommand { get; }
+
+    public RelayCommand ApplyColorAdjustmentCommand { get; }
+
+    public RelayCommand ResetColorAdjustmentsCommand { get; }
 
     public void LoadFolder(string folderPath)
     {
@@ -224,10 +311,7 @@ public sealed class MainViewModel : ObservableObject
             .Distinct()
             .ToList();
 
-        var operation = new ColorReplacementOperation
-        {
-            TargetArgb = targetArgb
-        };
+        var operation = new ColorReplacementOperation();
 
         foreach (var sourceArgb in affectedSources)
         {
@@ -237,13 +321,328 @@ public sealed class MainViewModel : ObservableObject
                 state.Replacements.TryGetValue(sourceArgb, out var previousTarget)
                     ? previousTarget
                     : null;
+            operation.NewValues[sourceArgb] = targetArgb;
             state.Replacements[sourceArgb] = targetArgb;
+        }
+
+        if (state.SelectedColors.Remove(paletteColor.ArgbKey))
+        {
+            state.SelectedColors.Add(targetArgb);
         }
 
         state.UndoStack.Push(operation);
         state.RedoStack.Clear();
         RefreshPreviewAndPalette();
         UpdateHistoryCommands();
+    }
+
+    /// <summary>
+    /// パレット色の右クリックから、複数選択状態を切り替えます。
+    /// </summary>
+    public void TogglePaletteColorSelection(PaletteColor paletteColor)
+    {
+        var state = GetSelectedEditState();
+        if (state is null)
+        {
+            return;
+        }
+
+        paletteColor.IsSelected = !paletteColor.IsSelected;
+        if (paletteColor.IsSelected)
+        {
+            state.SelectedColors.Add(paletteColor.ArgbKey);
+        }
+        else
+        {
+            state.SelectedColors.Remove(paletteColor.ArgbKey);
+        }
+
+        UpdateSelectionState();
+    }
+
+    /// <summary>
+    /// プレビュー画像上で取得した色を、現在の複数選択へ追加します。
+    /// </summary>
+    public void SelectPreviewPixel(int x, int y)
+    {
+        if (PreviewImage is null)
+        {
+            return;
+        }
+
+        var argb = _imageAnalysisService.GetArgbAt(PreviewImage, x, y);
+        if ((argb >> 24) == 0)
+        {
+            return;
+        }
+
+        var state = GetSelectedEditState();
+        var paletteColor = PaletteColors.FirstOrDefault(color => color.ArgbKey == argb);
+        if (state is null || paletteColor is null)
+        {
+            return;
+        }
+
+        state.SelectedColors.Add(argb);
+        paletteColor.IsSelected = true;
+        UpdateSelectionState();
+    }
+
+    private void SetAllPaletteColorsSelected(bool isSelected)
+    {
+        var state = GetSelectedEditState();
+        if (state is null)
+        {
+            return;
+        }
+
+        if (!isSelected)
+        {
+            state.SelectedColors.Clear();
+        }
+
+        foreach (var color in PaletteColors)
+        {
+            color.IsSelected = isSelected;
+            if (isSelected)
+            {
+                state.SelectedColors.Add(color.ArgbKey);
+            }
+        }
+
+        UpdateSelectionState();
+    }
+
+    private void ApplyColorAdjustment()
+    {
+        var state = GetSelectedEditState();
+        var selectedColors = GetSelectedArgbValues();
+        if (state is null || selectedColors.Count == 0)
+        {
+            return;
+        }
+
+        // 画面上の選択状態も履歴側へ同期してから処理します。
+        // これにより、右クリックによる個別選択も全選択と同じ経路で適用されます。
+        state.SelectedColors.UnionWith(selectedColors);
+        var operation = new ColorReplacementOperation();
+        var newSelectedColors = new HashSet<uint>();
+        var unchangedColors = new List<uint>();
+
+        foreach (var currentArgb in selectedColors)
+        {
+            var targetArgb = _imageAnalysisService.AdjustArgb(
+                currentArgb,
+                HueShift,
+                SaturationAdjustment,
+                BrightnessAdjustment,
+                TransparencyAdjustment);
+            if (targetArgb == currentArgb)
+            {
+                newSelectedColors.Add(currentArgb);
+                unchangedColors.Add(currentArgb);
+                continue;
+            }
+
+            var affectedSources = state.Replacements
+                .Where(entry => entry.Value == currentArgb)
+                .Select(entry => entry.Key)
+                .Append(currentArgb)
+                .Distinct()
+                .ToList();
+
+            foreach (var sourceArgb in affectedSources)
+            {
+                if (!operation.PreviousValues.ContainsKey(sourceArgb))
+                {
+                    operation.PreviousValues[sourceArgb] =
+                        state.Replacements.TryGetValue(sourceArgb, out var previousTarget)
+                            ? previousTarget
+                            : null;
+                }
+
+                operation.NewValues[sourceArgb] = targetArgb;
+                state.Replacements[sourceArgb] = targetArgb;
+            }
+
+            if ((targetArgb >> 24) != 0)
+            {
+                newSelectedColors.Add(targetArgb);
+            }
+        }
+
+        if (operation.NewValues.Count == 0)
+        {
+            var message = BuildNoChangeMessage(
+                changedColorCount: 0,
+                unchangedColors);
+            StatusMessage = "指定した調整では選択色が変化しませんでした";
+            System.Windows.MessageBox.Show(
+                message,
+                "色が変化しませんでした",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var changedColorCount = selectedColors.Count - unchangedColors.Count;
+        var partialNoChangeMessage = unchangedColors.Count > 0
+            ? BuildNoChangeMessage(changedColorCount, unchangedColors)
+            : null;
+
+        state.SelectedColors.Clear();
+        state.SelectedColors.UnionWith(newSelectedColors);
+        state.UndoStack.Push(operation);
+        state.RedoStack.Clear();
+        ResetColorAdjustments();
+        RefreshPreviewAndPalette();
+        StatusMessage = unchangedColors.Count == 0
+            ? $"{changedColorCount}色へ調整を適用しました"
+            : $"{changedColorCount}色を変更、{unchangedColors.Count}色は変化しませんでした";
+        UpdateHistoryCommands();
+
+        if (partialNoChangeMessage is not null)
+        {
+            System.Windows.MessageBox.Show(
+                partialNoChangeMessage,
+                "一部の色が変化しませんでした",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+    }
+
+    private bool CanApplyColorAdjustment()
+    {
+        return GetSelectedArgbValues().Count > 0
+            && (HueShift != 0
+                || SaturationAdjustment != 0
+                || BrightnessAdjustment != 0
+                || TransparencyAdjustment != 0);
+    }
+
+    private bool CanResetColorAdjustments()
+    {
+        return HueShift != 0
+            || SaturationAdjustment != 0
+            || BrightnessAdjustment != 0
+            || TransparencyAdjustment != 0;
+    }
+
+    private void ResetColorAdjustments()
+    {
+        HueShift = 0;
+        SaturationAdjustment = 0;
+        BrightnessAdjustment = 0;
+        TransparencyAdjustment = 0;
+    }
+
+    private HashSet<uint> GetSelectedArgbValues()
+    {
+        var selectedColors = GetSelectedEditState()?.SelectedColors is { } stored
+            ? new HashSet<uint>(stored)
+            : [];
+
+        // PaletteColor.IsSelectedを正として取り込むことで、
+        // マウス操作直後でも選択状態の同期漏れを起こさないようにします。
+        selectedColors.UnionWith(
+            PaletteColors
+                .Where(color => color.IsSelected)
+                .Select(color => color.ArgbKey));
+        return selectedColors;
+    }
+
+    private static double ClampAdjustment(
+        double value,
+        double minimum,
+        double maximum)
+    {
+        return double.IsFinite(value)
+            ? Math.Clamp(value, minimum, maximum)
+            : 0;
+    }
+
+    private string BuildNoChangeMessage(
+        int changedColorCount,
+        IReadOnlyCollection<uint> unchangedColors)
+    {
+        var heading = changedColorCount == 0
+            ? $"選択した{unchangedColors.Count}色は、指定した調整では変化しませんでした。"
+            : $"{changedColorCount}色は変更されましたが、{unchangedColors.Count}色は変化しませんでした。";
+        var reasons = new List<string>();
+
+        if (HueShift != 0 && unchangedColors.Any(IsGrayscale))
+        {
+            reasons.Add(
+                "グレー・白・黒など彩度が0の色は、色相だけを変更しても見た目が変わりません。彩度も上げてください。");
+        }
+
+        if (SaturationAdjustment > 0
+            && unchangedColors.Any(IsMaximumSaturation))
+        {
+            reasons.Add("既に彩度が最大の色は、それ以上鮮やかにできません。");
+        }
+        else if (SaturationAdjustment < 0
+            && unchangedColors.Any(IsGrayscale))
+        {
+            reasons.Add("既に彩度が0の色は、それ以上彩度を下げられません。");
+        }
+
+        if (BrightnessAdjustment > 0
+            && unchangedColors.Any(color => GetMaximumRgb(color) == byte.MaxValue))
+        {
+            reasons.Add("既に明度が最大の色は、それ以上明るくできません。");
+        }
+        else if (BrightnessAdjustment < 0
+            && unchangedColors.Any(color => GetMaximumRgb(color) == 0))
+        {
+            reasons.Add("既に明度が最小の黒は、それ以上暗くできません。");
+        }
+
+        if (TransparencyAdjustment < 0
+            && unchangedColors.Any(color => (byte)(color >> 24) == byte.MaxValue))
+        {
+            reasons.Add(
+                "透明度のマイナス値は色を不透明にします。既に完全に不透明な色は変化しません。");
+        }
+        else if (TransparencyAdjustment > 0
+            && unchangedColors.Any(color => (byte)(color >> 24) == 0))
+        {
+            reasons.Add(
+                "既に完全に透明な色は、それ以上透明にできません。");
+        }
+
+        if (reasons.Count == 0)
+        {
+            reasons.Add(
+                "選択色が指定方向の上限または下限に達している可能性があります。調整値を変更してください。");
+        }
+
+        return $"{heading}\n\n{string.Join("\n", reasons.Select(reason => $"・{reason}"))}";
+    }
+
+    private static bool IsGrayscale(uint argb)
+    {
+        var red = (byte)(argb >> 16);
+        var green = (byte)(argb >> 8);
+        var blue = (byte)argb;
+        return red == green && green == blue;
+    }
+
+    private static bool IsMaximumSaturation(uint argb)
+    {
+        var red = (byte)(argb >> 16);
+        var green = (byte)(argb >> 8);
+        var blue = (byte)argb;
+        return Math.Max(red, Math.Max(green, blue)) > 0
+            && Math.Min(red, Math.Min(green, blue)) == 0;
+    }
+
+    private static byte GetMaximumRgb(uint argb)
+    {
+        var red = (byte)(argb >> 16);
+        var green = (byte)(argb >> 8);
+        var blue = (byte)argb;
+        return Math.Max(red, Math.Max(green, blue));
     }
 
     private void Undo()
@@ -267,6 +666,7 @@ public sealed class MainViewModel : ObservableObject
             }
         }
 
+        state.SelectedColors.Clear();
         state.RedoStack.Push(operation);
         RefreshPreviewAndPalette();
         UpdateHistoryCommands();
@@ -281,11 +681,12 @@ public sealed class MainViewModel : ObservableObject
         }
 
         // UNDOした操作で影響を受けた全元色を、同じ置換先へ再適用します。
-        foreach (var sourceArgb in operation.PreviousValues.Keys)
+        foreach (var (sourceArgb, targetArgb) in operation.NewValues)
         {
-            state.Replacements[sourceArgb] = operation.TargetArgb;
+            state.Replacements[sourceArgb] = targetArgb;
         }
 
+        state.SelectedColors.Clear();
         state.UndoStack.Push(operation);
         RefreshPreviewAndPalette();
         UpdateHistoryCommands();
@@ -405,9 +806,11 @@ public sealed class MainViewModel : ObservableObject
         PaletteColors.Clear();
         foreach (var color in palette)
         {
+            color.IsSelected = state?.SelectedColors.Contains(color.ArgbKey) == true;
             PaletteColors.Add(color);
         }
 
+        UpdateSelectionState();
         StatusMessage =
             $"{SelectedSpriteFile.FileName} — {displayedImage.PixelWidth}×{displayedImage.PixelHeight}px、{palette.Count}色";
     }
@@ -417,6 +820,23 @@ public sealed class MainViewModel : ObservableObject
         UndoCommand.NotifyCanExecuteChanged();
         RedoCommand.NotifyCanExecuteChanged();
         SaveCharacterCommand.NotifyCanExecuteChanged();
+        ApplyColorAdjustmentCommand.NotifyCanExecuteChanged();
+    }
+
+    private void UpdateAdjustmentCommands()
+    {
+        ApplyColorAdjustmentCommand.NotifyCanExecuteChanged();
+        ResetColorAdjustmentsCommand.NotifyCanExecuteChanged();
+    }
+
+    private void UpdateSelectionState()
+    {
+        _isUpdatingSelectAll = true;
+        AreAllPaletteColorsSelected = PaletteColors.Count > 0
+            && PaletteColors.All(color => color.IsSelected);
+        _isUpdatingSelectAll = false;
+        OnPropertyChanged(nameof(SelectedColorCount));
+        ApplyColorAdjustmentCommand.NotifyCanExecuteChanged();
     }
 
     private void ClearPreview()
@@ -429,6 +849,7 @@ public sealed class MainViewModel : ObservableObject
         SelectedSpriteFile = null;
         PreviewImage = null;
         PaletteColors.Clear();
+        UpdateSelectionState();
         UpdateHistoryCommands();
     }
 
@@ -440,15 +861,18 @@ public sealed class MainViewModel : ObservableObject
         public Stack<ColorReplacementOperation> UndoStack { get; } = [];
 
         public Stack<ColorReplacementOperation> RedoStack { get; } = [];
+
+        // 画像を切り替えても維持する、現在の表示色ARGBの複数選択です。
+        public HashSet<uint> SelectedColors { get; } = [];
     }
 
     private sealed class ColorReplacementOperation
     {
-        // REDO時に全対象色へ再設定する置換先です。
-        public required uint TargetArgb { get; init; }
-
         // UNDOで復元する操作前の値です。nullは操作前にキーが存在しなかったことを示します。
         public Dictionary<uint, uint?> PreviousValues { get; } = [];
+
+        // REDO時に各元色へ再設定する置換先です。複数色の一括調整にも対応します。
+        public Dictionary<uint, uint> NewValues { get; } = [];
     }
 
     private void SelectFolder()
