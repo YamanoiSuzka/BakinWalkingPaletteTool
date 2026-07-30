@@ -791,11 +791,15 @@ public sealed class MainViewModel : ObservableObject
                 dialog.NewCharacterName,
                 dialog.OutputFolder,
                 replacements);
+            var savedItemName = SelectedCharacter.Files.Any(
+                file => file.IsAnimationFile)
+                    ? "アニメーション画像"
+                    : "PNG画像";
 
             StatusMessage =
                 $"{dialog.NewCharacterName}：{savedPaths.Count}ファイルを保存しました";
             System.Windows.MessageBox.Show(
-                $"{savedPaths.Count}個のアニメーション画像を保存しました。\n\n{dialog.OutputFolder}",
+                $"{savedPaths.Count}個の{savedItemName}を保存しました。\n\n{dialog.OutputFolder}",
                 "保存完了",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);

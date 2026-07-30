@@ -30,7 +30,7 @@
                 <TextBlock FontSize="22"
                            FontWeight="SemiBold"
                            Foreground="White"
-                           Text="ピクセルカラーチェンジャー" />
+                           Text="Pixel Recolor" />
                 <TextBlock Margin="0,5,0,0"
                            Foreground="#FFD5DCE8"
                            Text="PNGファイルの色変更と、命名規則に合うスプライトシートの一括色変換に対応します。" />
@@ -222,8 +222,17 @@
                                 Content="↷ REDO" />
                         <Button Grid.Column="3"
                                 Margin="12,0,0,0"
-                                Command="{Binding SaveCharacterCommand}"
-                                Content="別名保存する" />
+                                Command="{Binding SaveCharacterCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Margin="0,0,7,0"
+                                           VerticalAlignment="Center"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="15"
+                                           Text="&#xE74E;" />
+                                <TextBlock VerticalAlignment="Center"
+                                           Text="別名保存する" />
+                            </StackPanel>
+                        </Button>
                     </Grid>
 
                     <Border Grid.Row="1"
@@ -380,7 +389,7 @@
                             HorizontalAlignment="Right"
                             IsEnabled="{Binding HasSelectedColors}"
                             Click="OpenColorAdjustmentDialog_Click"
-                            Content="色の調整..." />
+                            Content="複数色の一括調整" />
                 </Grid>
             </Border>
         </Grid>
