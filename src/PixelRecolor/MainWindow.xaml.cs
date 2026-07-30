@@ -3,10 +3,10 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using BakinWalkingPaletteTool.Models;
-using BakinWalkingPaletteTool.ViewModels;
+using PixelRecolor.Models;
+using PixelRecolor.ViewModels;
 
-namespace BakinWalkingPaletteTool;
+namespace PixelRecolor;
 
 public partial class MainWindow : Window
 {

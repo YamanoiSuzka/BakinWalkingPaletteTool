@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 
-namespace BakinWalkingPaletteTool.Models;
+namespace PixelRecolor.Models;
 
 public sealed class CharacterGroup : INotifyPropertyChanged
 {

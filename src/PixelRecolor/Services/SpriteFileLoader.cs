@@ -1,7 +1,7 @@
 using System.IO;
-using BakinWalkingPaletteTool.Models;
+using PixelRecolor.Models;
 
-namespace BakinWalkingPaletteTool.Services;
+namespace PixelRecolor.Services;
 
 /// <summary>
 /// PNGファイルを読み込み、命名規則に合う素材だけをキャラクター単位にまとめます。

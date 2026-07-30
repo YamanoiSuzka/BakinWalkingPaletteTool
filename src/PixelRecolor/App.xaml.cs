@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace BakinWalkingPaletteTool;
+namespace PixelRecolor;
 
 public partial class App : System.Windows.Application
 {

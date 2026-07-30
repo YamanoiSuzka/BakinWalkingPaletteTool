@@ -1,4 +1,4 @@
-namespace BakinWalkingPaletteTool;
+namespace PixelRecolor;
 
 public partial class ColorAdjustmentDialog : System.Windows.Window
 {
@@ -7,4 +7,3 @@ public partial class ColorAdjustmentDialog : System.Windows.Window
         InitializeComponent();
     }
 }
-

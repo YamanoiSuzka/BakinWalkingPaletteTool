@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace BakinWalkingPaletteTool.Models;
+namespace PixelRecolor.Models;
 
 public sealed class SpriteFile : INotifyPropertyChanged
 {

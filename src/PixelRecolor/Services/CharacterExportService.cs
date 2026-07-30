@@ -1,8 +1,8 @@
 using System.IO;
 using System.Windows.Media.Imaging;
-using BakinWalkingPaletteTool.Models;
+using PixelRecolor.Models;
 
-namespace BakinWalkingPaletteTool.Services;
+namespace PixelRecolor.Services;
 
 /// <summary>
 /// 選択グループの画像を、色置換済みPNGとして出力します。

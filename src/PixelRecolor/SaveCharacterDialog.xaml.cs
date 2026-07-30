@@ -1,7 +1,7 @@
 using System.IO;
 using Microsoft.Win32;
 
-namespace BakinWalkingPaletteTool;
+namespace PixelRecolor;
 
 public partial class SaveCharacterDialog : System.Windows.Window
 {

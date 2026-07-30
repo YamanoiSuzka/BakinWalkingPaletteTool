@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace BakinWalkingPaletteTool.ViewModels;
+namespace PixelRecolor.ViewModels;
 
 public abstract class ObservableObject : INotifyPropertyChanged
 {

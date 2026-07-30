@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BakinWalkingPaletteTool", "src\BakinWalkingPaletteTool\BakinWalkingPaletteTool.csproj", "{A1D125B4-E60B-4783-A9C5-37D72089DA5E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PixelRecolor", "src\PixelRecolor\PixelRecolor.csproj", "{A1D125B4-E60B-4783-A9C5-37D72089DA5E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -19,4 +19,3 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal
-

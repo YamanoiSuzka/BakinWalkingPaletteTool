@@ -1,4 +1,4 @@
-<Window x:Class="BakinWalkingPaletteTool.ColorAdjustmentDialog"
+<Window x:Class="PixelRecolor.ColorAdjustmentDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="選択色の調整"
@@ -131,10 +131,6 @@
                     MinWidth="130"
                     Command="{Binding ResetColorAdjustmentsCommand}"
                     Content="パラメータをリセット" />
-            <Button Grid.Column="1"
-                    MinWidth="90"
-                    IsCancel="True"
-                    Content="閉じる" />
             <Button Grid.Column="2"
                     Margin="8,0,0,0"
                     MinWidth="110"

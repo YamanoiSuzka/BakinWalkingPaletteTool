@@ -2,6 +2,8 @@
 
 PNGドット絵の色変更と、RPG Developer Bakin向け歩行グラフィックのキャラクター単位一括変換に対応するWindowsデスクトップツールです。
 
+詳しい操作方法は[操作マニュアル](MANUAL.md)を参照してください。
+
 ## 現在の機能
 
 - フォルダー直下にあるすべてのPNG、または単体PNGファイルを読み込み
@@ -31,8 +33,8 @@ JSON設定保存は、今後の開発段階で実装します。
 
 ## 開き方
 
-1. `BakinWalkingPaletteTool.sln` をVisual Studioで開きます。
-2. `BakinWalkingPaletteTool` をスタートアッププロジェクトに設定します。
+1. `PixelRecolor.sln` をVisual Studioで開きます。
+2. `PixelRecolor` をスタートアッププロジェクトに設定します。
 3. `F5` キーで実行します。
 
 ## 使い方

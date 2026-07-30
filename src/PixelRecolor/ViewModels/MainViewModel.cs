@@ -3,11 +3,11 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
-using BakinWalkingPaletteTool.Models;
-using BakinWalkingPaletteTool.Services;
+using PixelRecolor.Models;
+using PixelRecolor.Services;
 using Microsoft.Win32;
 
-namespace BakinWalkingPaletteTool.ViewModels;
+namespace PixelRecolor.ViewModels;
 
 public sealed class MainViewModel : ObservableObject
 {

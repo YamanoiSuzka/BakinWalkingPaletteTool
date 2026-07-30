@@ -1,6 +1,6 @@
 using System.Windows.Input;
 
-namespace BakinWalkingPaletteTool.ViewModels;
+namespace PixelRecolor.ViewModels;
 
 public sealed class RelayCommand : ICommand
 {

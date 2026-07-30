@@ -2,7 +2,7 @@ using MediaColor = System.Windows.Media.Color;
 using SolidColorBrush = System.Windows.Media.SolidColorBrush;
 using System.ComponentModel;
 
-namespace BakinWalkingPaletteTool.Models;
+namespace PixelRecolor.Models;
 
 public sealed class PaletteColor : INotifyPropertyChanged
 {

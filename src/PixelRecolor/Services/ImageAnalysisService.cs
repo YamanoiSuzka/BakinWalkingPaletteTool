@@ -1,10 +1,10 @@
 using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using BakinWalkingPaletteTool.Models;
+using PixelRecolor.Models;
 using MediaColor = System.Windows.Media.Color;
 
-namespace BakinWalkingPaletteTool.Services;
+namespace PixelRecolor.Services;
 
 /// <summary>
 /// PNGの読み込み、使用色の集計、色置換済みプレビューの生成を担当します。

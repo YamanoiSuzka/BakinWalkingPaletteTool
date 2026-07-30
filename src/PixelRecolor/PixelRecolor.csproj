@@ -8,8 +8,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <ApplicationIcon />
-    <AssemblyName>BakinWalkingPaletteTool</AssemblyName>
-    <RootNamespace>BakinWalkingPaletteTool</RootNamespace>
+    <AssemblyName>PixelRecolor</AssemblyName>
+    <RootNamespace>PixelRecolor</RootNamespace>
+    <Product>PixelRecolor</Product>
+    <Title>PixelRecolor</Title>
   </PropertyGroup>
 
 </Project>

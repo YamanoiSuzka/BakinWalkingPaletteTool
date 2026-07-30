@@ -1,6 +1,6 @@
 using System.Windows.Input;
 
-namespace BakinWalkingPaletteTool.ViewModels;
+namespace PixelRecolor.ViewModels;
 
 public sealed class ParameterizedRelayCommand<T>(Action<T> execute) : ICommand
     where T : class
@@ -21,4 +21,3 @@ public sealed class ParameterizedRelayCommand<T>(Action<T> execute) : ICommand
         }
     }
 }
-
