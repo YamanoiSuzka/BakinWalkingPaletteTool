@@ -17,6 +17,8 @@ public sealed class SpriteFile : INotifyPropertyChanged
 
     public required string AnimationName { get; init; }
 
+    public required bool IsAnimationFile { get; init; }
+
     public bool IsSelected
     {
         get => _isSelected;

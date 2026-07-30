@@ -46,6 +46,7 @@ public sealed class MainViewModel : ObservableObject
         _imageAnalysisService = imageAnalysisService;
         _characterExportService = characterExportService;
         SelectFolderCommand = new RelayCommand(SelectFolder);
+        SelectFileCommand = new RelayCommand(SelectFile);
         SelectSpriteCommand = new ParameterizedRelayCommand<SpriteFile>(SelectSprite);
         SelectPaletteColorCommand =
             new ParameterizedRelayCommand<PaletteColor>(SelectPaletteColor);
@@ -170,6 +171,8 @@ public sealed class MainViewModel : ObservableObject
 
     public ICommand SelectFolderCommand { get; }
 
+    public ICommand SelectFileCommand { get; }
+
     public ICommand SelectSpriteCommand { get; }
 
     public ICommand SelectPaletteColorCommand { get; }
@@ -189,39 +192,7 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             var groups = _spriteFileLoader.LoadFromFolder(folderPath);
-
-            // フォルダーを切り替えた時点で、前の素材に対する編集履歴は破棄します。
-            CharacterGroups.Clear();
-            _editStates.Clear();
-            foreach (var group in groups)
-            {
-                CharacterGroups.Add(group);
-                _editStates[group] = new CharacterEditState();
-            }
-
-            CurrentFolder = folderPath;
-            SelectedCharacter = CharacterGroups.FirstOrDefault();
-            if (SelectedCharacter is not null)
-            {
-                SelectedCharacter.IsExpanded = true;
-            }
-
-            var firstFile = SelectedCharacter?.Files.FirstOrDefault();
-            if (firstFile is not null)
-            {
-                SelectSprite(firstFile);
-            }
-            else
-            {
-                ClearPreview();
-            }
-
-            UpdateHistoryCommands();
-
-            var fileCount = CharacterGroups.Sum(group => group.FileCount);
-            StatusMessage = CharacterGroups.Count == 0
-                ? "有効なPNGファイルが見つかりませんでした"
-                : $"{CharacterGroups.Count}キャラクター、{fileCount}ファイルを読み込みました";
+            SetLoadedGroups(groups, folderPath);
         }
         catch (Exception exception) when (
             exception is IOException
@@ -234,6 +205,71 @@ public sealed class MainViewModel : ObservableObject
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
+    }
+
+    public void LoadFile(string filePath)
+    {
+        try
+        {
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException(
+                    "PNGファイルが見つかりません。",
+                    filePath);
+            }
+
+            var groups = _spriteFileLoader.LoadFiles([filePath]);
+            SetLoadedGroups(groups, filePath);
+        }
+        catch (Exception exception) when (
+            exception is IOException
+            or UnauthorizedAccessException
+            or ArgumentException)
+        {
+            System.Windows.MessageBox.Show(
+                exception.Message,
+                "PNGファイルの読み込みに失敗しました",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private void SetLoadedGroups(
+        IReadOnlyList<CharacterGroup> groups,
+        string sourcePath)
+    {
+        // 読み込み元を切り替えた時点で、前の素材に対する編集履歴は破棄します。
+        CharacterGroups.Clear();
+        _editStates.Clear();
+        foreach (var group in groups)
+        {
+            CharacterGroups.Add(group);
+            _editStates[group] = new CharacterEditState();
+        }
+
+        CurrentFolder = sourcePath;
+        SelectedCharacter = CharacterGroups.FirstOrDefault();
+        if (SelectedCharacter is not null)
+        {
+            SelectedCharacter.IsExpanded = true;
+        }
+
+        var firstFile = SelectedCharacter?.Files.FirstOrDefault();
+        if (firstFile is not null)
+        {
+            SelectSprite(firstFile);
+        }
+        else
+        {
+            ClearPreview();
+        }
+
+        UpdateHistoryCommands();
+
+        var fileCount = CharacterGroups.Sum(group => group.FileCount);
+        StatusMessage = CharacterGroups.Count == 0
+            ? "PNGファイルが見つかりませんでした"
+            : $"{CharacterGroups.Count}グループ、{fileCount}ファイルを読み込みました";
     }
 
     private void SelectSprite(SpriteFile spriteFile)
@@ -708,9 +744,10 @@ public sealed class MainViewModel : ObservableObject
 
         var dialog = new SaveCharacterDialog(
             SelectedCharacter.CharacterName,
-            $"{SelectedCharacter.CharacterName}_variant",
-            Directory.Exists(CurrentFolder)
-                ? CurrentFolder
+            $"{SelectedCharacter.CharacterName}-variant",
+            Path.GetDirectoryName(SelectedSpriteFile?.FilePath) is { } sourceFolder
+                && Directory.Exists(sourceFolder)
+                ? sourceFolder
                 : Environment.GetFolderPath(
                     Environment.SpecialFolder.MyPictures))
         {
@@ -887,13 +924,29 @@ public sealed class MainViewModel : ObservableObject
     {
         var dialog = new OpenFolderDialog
         {
-            Title = "歩行グラフィックが入っているフォルダーを選択",
+            Title = "PNG画像が入っているフォルダーを選択",
             Multiselect = false
         };
 
         if (dialog.ShowDialog() == true)
         {
             LoadFolder(dialog.FolderName);
+        }
+    }
+
+    private void SelectFile()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "編集するPNG画像を選択",
+            Filter = "PNG画像 (*.png)|*.png",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            LoadFile(dialog.FileName);
         }
     }
 }

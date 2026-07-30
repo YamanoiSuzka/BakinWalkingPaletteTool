@@ -4,12 +4,12 @@ using BakinWalkingPaletteTool.Models;
 namespace BakinWalkingPaletteTool.Services;
 
 /// <summary>
-/// フォルダー内のファイル名を解析し、Bakin用素材をキャラクター単位にまとめます。
+/// PNGファイルを読み込み、命名規則に合う素材だけをキャラクター単位にまとめます。
 /// </summary>
 public sealed class SpriteFileLoader
 {
     /// <summary>
-    /// 指定フォルダー直下にある有効なPNGだけを読み込みます。
+    /// 指定フォルダー直下にあるすべてのPNGを読み込みます。
     /// サブフォルダーは、意図しない素材の混入を避けるため検索しません。
     /// </summary>
     public IReadOnlyList<CharacterGroup> LoadFromFolder(string folderPath)
@@ -21,36 +21,54 @@ public sealed class SpriteFileLoader
             throw new DirectoryNotFoundException($"フォルダーが見つかりません: {folderPath}");
         }
 
-        var spriteFiles = Directory
-            .EnumerateFiles(folderPath, "*", SearchOption.TopDirectoryOnly)
+        return LoadFiles(
+            Directory.EnumerateFiles(
+                folderPath,
+                "*",
+                SearchOption.TopDirectoryOnly));
+    }
+
+    /// <summary>
+    /// 指定した複数のパスからPNGを読み込み、命名規則に応じてグループ化します。
+    /// 命名規則に合わないPNGは、他画像へ色変更を波及させない独立グループにします。
+    /// </summary>
+    public IReadOnlyList<CharacterGroup> LoadFiles(IEnumerable<string> filePaths)
+    {
+        var spriteFiles = filePaths
             .Select(TryParse)
             .OfType<SpriteFile>()
             .OrderBy(file => file.CharacterName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(file => file.AnimationName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(file => file.FileName, StringComparer.OrdinalIgnoreCase);
+            .ThenBy(file => file.FileName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-        return spriteFiles
+        var groups = spriteFiles
+            .Where(file => file.IsAnimationFile)
             .GroupBy(file => file.CharacterName, StringComparer.OrdinalIgnoreCase)
-            .Select(group =>
+            .Select(CreateCharacterGroup)
+            .ToList();
+
+        foreach (var standaloneFile in spriteFiles.Where(
+            file => !file.IsAnimationFile))
+        {
+            var standaloneGroup = new CharacterGroup
             {
-                var characterGroup = new CharacterGroup
-                {
-                    CharacterName = group.Key
-                };
+                CharacterName = standaloneFile.CharacterName
+            };
+            standaloneGroup.Files.Add(standaloneFile);
+            groups.Add(standaloneGroup);
+        }
 
-                foreach (var file in group)
-                {
-                    characterGroup.Files.Add(file);
-                }
-
-                return characterGroup;
-            })
+        return groups
+            .OrderBy(group => group.CharacterName, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
     /// <summary>
-    /// 「キャラクター名_アニメーション名.png」を解析します。
-    /// 形式に一致しない場合は例外ではなくnullを返し、呼び出し側で無視できるようにします。
+    /// PNGのファイル情報を作ります。
+    /// 「キャラクター名_アニメーション名.png」に一致する場合は両要素を解析し、
+    /// それ以外のPNGはファイル名全体を独立グループ名として扱います。
+    /// PNG以外の場合だけnullを返します。
     /// </summary>
     public SpriteFile? TryParse(string filePath)
     {
@@ -65,9 +83,22 @@ public sealed class SpriteFileLoader
         // 例: villager_red_wait.png → villager_red / wait
         var separatorIndex = nameWithoutExtension.LastIndexOf('_');
 
-        if (separatorIndex <= 0 || separatorIndex >= nameWithoutExtension.Length - 1)
+        var isAnimationFile =
+            separatorIndex > 0
+            && separatorIndex < nameWithoutExtension.Length - 1;
+
+        if (!isAnimationFile)
         {
-            return null;
+            return new SpriteFile
+            {
+                FilePath = filePath,
+                FileName = Path.GetFileName(filePath),
+                CharacterName = string.IsNullOrEmpty(nameWithoutExtension)
+                    ? Path.GetFileName(filePath)
+                    : nameWithoutExtension,
+                AnimationName = string.Empty,
+                IsAnimationFile = false
+            };
         }
 
         return new SpriteFile
@@ -75,7 +106,24 @@ public sealed class SpriteFileLoader
             FilePath = filePath,
             FileName = Path.GetFileName(filePath),
             CharacterName = nameWithoutExtension[..separatorIndex],
-            AnimationName = nameWithoutExtension[(separatorIndex + 1)..]
+            AnimationName = nameWithoutExtension[(separatorIndex + 1)..],
+            IsAnimationFile = true
         };
+    }
+
+    private static CharacterGroup CreateCharacterGroup(
+        IGrouping<string, SpriteFile> group)
+    {
+        var characterGroup = new CharacterGroup
+        {
+            CharacterName = group.Key
+        };
+
+        foreach (var file in group)
+        {
+            characterGroup.Files.Add(file);
+        }
+
+        return characterGroup;
     }
 }

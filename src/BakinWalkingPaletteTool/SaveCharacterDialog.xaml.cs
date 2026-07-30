@@ -82,14 +82,14 @@ public partial class SaveCharacterDialog : System.Windows.Window
             _originalCharacterName,
             StringComparison.OrdinalIgnoreCase))
         {
-            message = "元のキャラクター名とは異なる名前を入力してください。";
+            message = "元の名前とは異なる名前を入力してください。";
         }
         else if (characterName is "." or ".."
             || characterName.EndsWith(' ')
             || characterName.EndsWith('.')
             || characterName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
         {
-            message = "キャラクター名にファイル名として使用できない文字が含まれています。";
+            message = "名前にファイル名として使用できない文字が含まれています。";
         }
         else if (!Directory.Exists(OutputFolder))
         {

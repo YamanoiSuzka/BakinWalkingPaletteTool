@@ -15,6 +15,11 @@ public sealed class CharacterGroup : INotifyPropertyChanged
 
     public int FileCount => Files.Count;
 
+    public string DisplayName =>
+        Files.Count == 1 && !Files[0].IsAnimationFile
+            ? $"{CharacterName}（単体）"
+            : CharacterName;
+
     public bool IsExpanded
     {
         get => _isExpanded;
@@ -30,4 +35,3 @@ public sealed class CharacterGroup : INotifyPropertyChanged
         }
     }
 }
-

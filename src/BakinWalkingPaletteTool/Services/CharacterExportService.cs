@@ -5,12 +5,12 @@ using BakinWalkingPaletteTool.Models;
 namespace BakinWalkingPaletteTool.Services;
 
 /// <summary>
-/// 選択キャラクターに属する全アニメーションを、色置換済みPNGとして出力します。
+/// 選択グループの画像を、色置換済みPNGとして出力します。
 /// </summary>
 public sealed class CharacterExportService(ImageAnalysisService imageAnalysisService)
 {
     /// <summary>
-    /// キャラクター名だけを差し替え、アニメーション名を維持した出力パスを作ります。
+    /// グループ画像ではアニメーション名を維持し、単体画像では指定名をそのまま使います。
     /// </summary>
     public IReadOnlyList<string> GetOutputPaths(
         CharacterGroup character,
@@ -20,7 +20,9 @@ public sealed class CharacterExportService(ImageAnalysisService imageAnalysisSer
         return character.Files
             .Select(file => Path.Combine(
                 outputFolder,
-                $"{newCharacterName}_{file.AnimationName}.png"))
+                file.IsAnimationFile
+                    ? $"{newCharacterName}_{file.AnimationName}.png"
+                    : $"{newCharacterName}.png"))
             .ToList();
     }
 
