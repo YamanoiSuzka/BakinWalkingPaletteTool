@@ -33,8 +33,8 @@ public sealed class ImageAnalysisService
     }
 
     /// <summary>
-    /// 画像内の不透明・半透明ピクセルをARGB単位で集計します。
-    /// 完全透明なピクセルは背景領域としてパレットから除外します。
+    /// 画像内の全ピクセルを、透明度を含むARGB単位で集計します。
+    /// 完全透明な色も編集・再着色できるよう、パレットから除外しません。
     /// </summary>
     public IReadOnlyList<PaletteColor> ExtractPalette(BitmapSource source)
     {
@@ -52,7 +52,7 @@ public sealed class ImageAnalysisService
             var red = pixels[index + 2];
             var alpha = pixels[index + 3];
 
-            if (alpha == 0)
+            if (blue==0 && green==0 && red==0 && alpha == 0)
             {
                 continue;
             }

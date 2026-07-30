@@ -110,6 +110,8 @@ public sealed class MainViewModel : ObservableObject
 
     public int SelectedColorCount => GetSelectedArgbValues().Count;
 
+    public bool HasSelectedColors => SelectedColorCount > 0;
+
     public double HueShift
     {
         get => _hueShift;
@@ -117,7 +119,7 @@ public sealed class MainViewModel : ObservableObject
         {
             if (SetProperty(
                 ref _hueShift,
-                ClampAdjustment(value, -180, 180)))
+                ClampAdjustment(value, 0, 180)))
             {
                 UpdateAdjustmentCommands();
             }
@@ -361,31 +363,38 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// プレビュー画像上で取得した色を、現在の複数選択へ追加します。
+    /// プレビュー画像上で取得した色のカラーピッカーを開きます。
     /// </summary>
-    public void SelectPreviewPixel(int x, int y)
+    public void OpenPreviewPixelColorPicker(int x, int y)
+    {
+        var paletteColor = GetPreviewPaletteColor(x, y);
+        if (paletteColor is not null)
+        {
+            SelectPaletteColor(paletteColor);
+        }
+    }
+
+    /// <summary>
+    /// プレビュー画像上で取得した色の選択状態を切り替えます。
+    /// </summary>
+    public void TogglePreviewPixelSelection(int x, int y)
+    {
+        var paletteColor = GetPreviewPaletteColor(x, y);
+        if (paletteColor is not null)
+        {
+            TogglePaletteColorSelection(paletteColor);
+        }
+    }
+
+    private PaletteColor? GetPreviewPaletteColor(int x, int y)
     {
         if (PreviewImage is null)
         {
-            return;
+            return null;
         }
 
         var argb = _imageAnalysisService.GetArgbAt(PreviewImage, x, y);
-        if ((argb >> 24) == 0)
-        {
-            return;
-        }
-
-        var state = GetSelectedEditState();
-        var paletteColor = PaletteColors.FirstOrDefault(color => color.ArgbKey == argb);
-        if (state is null || paletteColor is null)
-        {
-            return;
-        }
-
-        state.SelectedColors.Add(argb);
-        paletteColor.IsSelected = true;
-        UpdateSelectionState();
+        return PaletteColors.FirstOrDefault(color => color.ArgbKey == argb);
     }
 
     private void SetAllPaletteColorsSelected(bool isSelected)
@@ -465,10 +474,8 @@ public sealed class MainViewModel : ObservableObject
                 state.Replacements[sourceArgb] = targetArgb;
             }
 
-            if ((targetArgb >> 24) != 0)
-            {
-                newSelectedColors.Add(targetArgb);
-            }
+            // 完全透明になった色もパレットと選択状態へ残します。
+            newSelectedColors.Add(targetArgb);
         }
 
         if (operation.NewValues.Count == 0)
@@ -836,6 +843,7 @@ public sealed class MainViewModel : ObservableObject
             && PaletteColors.All(color => color.IsSelected);
         _isUpdatingSelectAll = false;
         OnPropertyChanged(nameof(SelectedColorCount));
+        OnPropertyChanged(nameof(HasSelectedColors));
         ApplyColorAdjustmentCommand.NotifyCanExecuteChanged();
     }
 

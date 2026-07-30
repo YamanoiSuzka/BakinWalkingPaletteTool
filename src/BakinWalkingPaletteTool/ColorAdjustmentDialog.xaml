@@ -1,0 +1,146 @@
+<Window x:Class="BakinWalkingPaletteTool.ColorAdjustmentDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="選択色の調整"
+        Width="620"
+        MinWidth="520"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock FontSize="18"
+                   FontWeight="SemiBold"
+                   Text="選択色の一括調整" />
+
+        <TextBlock Grid.Row="1"
+                   Margin="0,6,0,18"
+                   Foreground="#FF667085"
+                   TextWrapping="Wrap">
+            <Run Text="選択中の " />
+            <Run FontWeight="SemiBold"
+                 Text="{Binding SelectedColorCount, Mode=OneWay}" />
+            <Run Text=" 色へ、同じ調整をまとめて適用します。変更は同じキャラクターの全アニメーションに反映されます。" />
+        </TextBlock>
+
+        <Border Grid.Row="2"
+                Padding="16"
+                Background="#FFF8FAFC"
+                BorderBrush="#FFE4E7EC"
+                BorderThickness="1"
+                CornerRadius="4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="72" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="72" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock VerticalAlignment="Center" Text="色相" />
+                <Slider Grid.Column="1"
+                        Margin="8,0"
+                        Minimum="0"
+                        Maximum="180"
+                        TickFrequency="1"
+                        ToolTip="値が大きくなるほど反対の色（補色）に近づきます。グレー・白・黒は色相だけでは変化しません。"
+                        Value="{Binding HueShift, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBox Grid.Column="2"
+                         Padding="6,3"
+                         HorizontalContentAlignment="Right"
+                         ToolTip="0～180"
+                         Text="{Binding HueShift, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                <TextBlock Grid.Row="1"
+                           VerticalAlignment="Center"
+                           Text="彩度" />
+                <Slider Grid.Row="1"
+                        Grid.Column="1"
+                        Margin="8,0"
+                        Minimum="-100"
+                        Maximum="100"
+                        TickFrequency="1"
+                        ToolTip="正の値ほど鮮やかに、負の値ほどグレーに近づけます。"
+                        Value="{Binding SaturationAdjustment, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBox Grid.Row="1"
+                         Grid.Column="2"
+                         Padding="6,3"
+                         HorizontalContentAlignment="Right"
+                         ToolTip="-100～100"
+                         Text="{Binding SaturationAdjustment, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                <TextBlock Grid.Row="2"
+                           VerticalAlignment="Center"
+                           Text="明度" />
+                <Slider Grid.Row="2"
+                        Grid.Column="1"
+                        Margin="8,0"
+                        Minimum="-100"
+                        Maximum="100"
+                        TickFrequency="1"
+                        ToolTip="正の値ほど明るく、負の値ほど暗くします。"
+                        Value="{Binding BrightnessAdjustment, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBox Grid.Row="2"
+                         Grid.Column="2"
+                         Padding="6,3"
+                         HorizontalContentAlignment="Right"
+                         ToolTip="-100～100"
+                         Text="{Binding BrightnessAdjustment, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                <TextBlock Grid.Row="3"
+                           VerticalAlignment="Center"
+                           Text="透明度" />
+                <Slider Grid.Row="3"
+                        Grid.Column="1"
+                        Margin="8,0"
+                        Minimum="-100"
+                        Maximum="100"
+                        TickFrequency="1"
+                        ToolTip="正の値ほど透明に、負の値ほど不透明にします。既に不透明な色へ負の値を指定しても変化しません。"
+                        Value="{Binding TransparencyAdjustment, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBox Grid.Row="3"
+                         Grid.Column="2"
+                         Padding="6,3"
+                         HorizontalContentAlignment="Right"
+                         ToolTip="-100～100"
+                         Text="{Binding TransparencyAdjustment, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="3"
+              Margin="0,18,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Button HorizontalAlignment="Left"
+                    MinWidth="130"
+                    Command="{Binding ResetColorAdjustmentsCommand}"
+                    Content="パラメータをリセット" />
+            <Button Grid.Column="1"
+                    MinWidth="90"
+                    IsCancel="True"
+                    Content="閉じる" />
+            <Button Grid.Column="2"
+                    Margin="8,0,0,0"
+                    MinWidth="110"
+                    IsDefault="True"
+                    Command="{Binding ApplyColorAdjustmentCommand}"
+                    Content="選択色に適用" />
+        </Grid>
+    </Grid>
+</Window>

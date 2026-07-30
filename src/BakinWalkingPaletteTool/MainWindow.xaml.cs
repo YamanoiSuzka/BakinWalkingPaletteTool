@@ -26,16 +26,61 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OpenColorAdjustmentDialog_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel
+            || !viewModel.HasSelectedColors)
+        {
+            return;
+        }
+
+        var dialog = new ColorAdjustmentDialog
+        {
+            Owner = this,
+            DataContext = viewModel
+        };
+        dialog.ShowDialog();
+    }
+
     private void PreviewImage_MouseLeftButtonDown(
         object sender,
         MouseButtonEventArgs e)
     {
-        if (DataContext is not MainViewModel viewModel
-            || PreviewImageControl.Source is not BitmapSource image
+        if (DataContext is MainViewModel viewModel
+            && TryGetPreviewPixel(e, out var pixelX, out var pixelY))
+        {
+            viewModel.OpenPreviewPixelColorPicker(pixelX, pixelY);
+            e.Handled = true;
+        }
+    }
+
+    private void PreviewImage_MouseRightButtonDown(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel
+            && TryGetPreviewPixel(e, out var pixelX, out var pixelY))
+        {
+            viewModel.TogglePreviewPixelSelection(pixelX, pixelY);
+            e.Handled = true;
+        }
+    }
+
+    private bool TryGetPreviewPixel(
+        MouseButtonEventArgs e,
+        out int pixelX,
+        out int pixelY)
+    {
+        pixelX = 0;
+        pixelY = 0;
+
+        if (PreviewImageControl.Source is not BitmapSource image
             || PreviewImageControl.ActualWidth <= 0
             || PreviewImageControl.ActualHeight <= 0)
         {
-            return;
+            return false;
         }
 
         // Stretch="Uniform"で生じる上下または左右の余白を除いて、
@@ -54,17 +99,16 @@ public partial class MainWindow : Window
             || position.Y < offsetY
             || position.Y >= offsetY + renderedHeight)
         {
-            return;
+            return false;
         }
 
-        var pixelX = Math.Min(
+        pixelX = Math.Min(
             (int)((position.X - offsetX) / scale),
             image.PixelWidth - 1);
-        var pixelY = Math.Min(
+        pixelY = Math.Min(
             (int)((position.Y - offsetY) / scale),
             image.PixelHeight - 1);
 
-        viewModel.SelectPreviewPixel(pixelX, pixelY);
-        e.Handled = true;
+        return true;
     }
 }

@@ -36,9 +36,9 @@ public sealed class PaletteColor : INotifyPropertyChanged
         | ((uint)Color.G << 8)
         | Color.B;
 
-    public string HexCode => Color.A == byte.MaxValue
-        ? $"#{Color.R:X2}{Color.G:X2}{Color.B:X2}"
-        : $"#{Color.A:X2}{Color.R:X2}{Color.G:X2}{Color.B:X2}";
+    // 透明度を含むことが常に分かるよう、#RRGGBBAA形式の8桁で統一します。
+    public string HexCode =>
+        $"#{Color.R:X2}{Color.G:X2}{Color.B:X2}{Color.A:X2}";
 
     public SolidColorBrush Brush
     {
