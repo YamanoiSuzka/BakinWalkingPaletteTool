@@ -128,6 +128,15 @@ public partial class MainWindow : Window
         }
     }
 
+    private void MainWindow_Closing(object? sender, CancelEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel
+            && !viewModel.ConfirmDiscardUnsavedChanges("アプリを終了する"))
+        {
+            e.Cancel = true;
+        }
+    }
+
     private void ResetPreviewZoom()
     {
         _previewZoom = 1;

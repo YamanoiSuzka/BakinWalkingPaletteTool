@@ -116,6 +116,17 @@ public sealed class MainViewModel : ObservableObject
 
     public bool HasSelectedColors => SelectedColorCount > 0;
 
+    public bool HasPendingColorAdjustments =>
+        HueShift != 0
+        || SaturationAdjustment != 0
+        || BrightnessAdjustment != 0
+        || TransparencyAdjustment != 0;
+
+    public bool HasUnsavedChanges => _editStates.Values.Any(
+        state => !AreReplacementMapsEqual(
+            state.Replacements,
+            state.SavedReplacements));
+
     public double HueShift
     {
         get => _hueShift;
@@ -125,6 +136,7 @@ public sealed class MainViewModel : ObservableObject
                 ref _hueShift,
                 ClampAdjustment(value, 0, 180)))
             {
+                OnPropertyChanged(nameof(HasPendingColorAdjustments));
                 UpdateAdjustmentCommands();
             }
         }
@@ -139,6 +151,7 @@ public sealed class MainViewModel : ObservableObject
                 ref _saturationAdjustment,
                 ClampAdjustment(value, -100, 100)))
             {
+                OnPropertyChanged(nameof(HasPendingColorAdjustments));
                 UpdateAdjustmentCommands();
             }
         }
@@ -153,6 +166,7 @@ public sealed class MainViewModel : ObservableObject
                 ref _brightnessAdjustment,
                 ClampAdjustment(value, -100, 100)))
             {
+                OnPropertyChanged(nameof(HasPendingColorAdjustments));
                 UpdateAdjustmentCommands();
             }
         }
@@ -167,6 +181,7 @@ public sealed class MainViewModel : ObservableObject
                 ref _transparencyAdjustment,
                 ClampAdjustment(value, -100, 100)))
             {
+                OnPropertyChanged(nameof(HasPendingColorAdjustments));
                 UpdateAdjustmentCommands();
             }
         }
@@ -220,6 +235,11 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             var groups = _spriteFileLoader.LoadFromFolder(folderPath);
+            if (!ConfirmDiscardUnsavedChanges("別のフォルダーを読み込む"))
+            {
+                return;
+            }
+
             SetLoadedGroups(groups, folderPath);
         }
         catch (Exception exception) when (
@@ -247,6 +267,11 @@ public sealed class MainViewModel : ObservableObject
             }
 
             var groups = _spriteFileLoader.LoadFiles([filePath]);
+            if (!ConfirmDiscardUnsavedChanges("別のPNGを読み込む"))
+            {
+                return;
+            }
+
             SetLoadedGroups(groups, filePath);
         }
         catch (Exception exception) when (
@@ -298,6 +323,24 @@ public sealed class MainViewModel : ObservableObject
         StatusMessage = CharacterGroups.Count == 0
             ? "PNGファイルが見つかりませんでした"
             : $"{CharacterGroups.Count}グループ、{fileCount}ファイルを読み込みました";
+        OnPropertyChanged(nameof(HasUnsavedChanges));
+    }
+
+    public bool ConfirmDiscardUnsavedChanges(string actionDescription)
+    {
+        if (!HasUnsavedChanges)
+        {
+            return true;
+        }
+
+        var result = System.Windows.MessageBox.Show(
+            $"保存されていない色変更があります。\n\n"
+            + $"{actionDescription}と、変更内容とUNDO・REDO履歴は破棄されます。"
+            + "\n続行しますか？",
+            "未保存の変更",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        return result == MessageBoxResult.Yes;
     }
 
     private void SelectSprite(SpriteFile spriteFile)
@@ -398,6 +441,7 @@ public sealed class MainViewModel : ObservableObject
 
         state.UndoStack.Push(operation);
         state.RedoStack.Clear();
+        OnPropertyChanged(nameof(HasUnsavedChanges));
         RefreshPreviewAndPalette();
         UpdateHistoryCommands();
     }
@@ -565,6 +609,7 @@ public sealed class MainViewModel : ObservableObject
         state.SelectedColors.UnionWith(newSelectedColors);
         state.UndoStack.Push(operation);
         state.RedoStack.Clear();
+        OnPropertyChanged(nameof(HasUnsavedChanges));
         _isUpdatingAdjustments = true;
         ResetColorAdjustments();
         _isUpdatingAdjustments = false;
@@ -723,6 +768,16 @@ public sealed class MainViewModel : ObservableObject
         return Math.Max(red, Math.Max(green, blue));
     }
 
+    private static bool AreReplacementMapsEqual(
+        IReadOnlyDictionary<uint, uint> first,
+        IReadOnlyDictionary<uint, uint> second)
+    {
+        return first.Count == second.Count
+            && first.All(entry =>
+                second.TryGetValue(entry.Key, out var value)
+                && value == entry.Value);
+    }
+
     private void Undo()
     {
         var state = GetSelectedEditState();
@@ -746,6 +801,7 @@ public sealed class MainViewModel : ObservableObject
 
         state.SelectedColors.Clear();
         state.RedoStack.Push(operation);
+        OnPropertyChanged(nameof(HasUnsavedChanges));
         RefreshPreviewAndPalette();
         UpdateHistoryCommands();
     }
@@ -766,6 +822,7 @@ public sealed class MainViewModel : ObservableObject
 
         state.SelectedColors.Clear();
         state.UndoStack.Push(operation);
+        OnPropertyChanged(nameof(HasUnsavedChanges));
         RefreshPreviewAndPalette();
         UpdateHistoryCommands();
     }
@@ -826,6 +883,19 @@ public sealed class MainViewModel : ObservableObject
                 dialog.NewCharacterName,
                 dialog.OutputFolder,
                 replacements);
+
+            // 正常に保存できた時点の置換内容を記録し、以後の未保存判定の基準にします。
+            var editState = GetSelectedEditState();
+            if (editState is not null)
+            {
+                editState.SavedReplacements.Clear();
+                foreach (var (sourceArgb, targetArgb) in editState.Replacements)
+                {
+                    editState.SavedReplacements[sourceArgb] = targetArgb;
+                }
+            }
+
+            OnPropertyChanged(nameof(HasUnsavedChanges));
             var savedItemName = SelectedCharacter.Files.Any(
                 file => file.IsAnimationFile)
                     ? "アニメーション画像"
@@ -979,6 +1049,9 @@ public sealed class MainViewModel : ObservableObject
     {
         // キーと値はいずれも 0xAARRGGBB 形式です。
         public Dictionary<uint, uint> Replacements { get; } = [];
+
+        // 最後に正常保存した置換内容です。現在値との比較により未保存状態を判定します。
+        public Dictionary<uint, uint> SavedReplacements { get; } = [];
 
         public Stack<ColorReplacementOperation> UndoStack { get; } = [];
 
