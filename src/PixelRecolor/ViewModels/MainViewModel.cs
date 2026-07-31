@@ -205,6 +205,8 @@ public sealed class MainViewModel : ObservableObject
 
     public RelayCommand ResetColorAdjustmentsCommand { get; }
 
+    public event EventHandler? ColorAdjustmentApplied;
+
     /// <summary>
     /// 色調整ダイアログを開いたとき、一時プレビューを有効にします。
     /// この段階では置換マップやUNDO履歴を変更しません。
@@ -543,7 +545,6 @@ public sealed class MainViewModel : ObservableObject
         // これにより、右クリックによる個別選択も全選択と同じ経路で適用されます。
         state.SelectedColors.UnionWith(selectedColors);
         var operation = new ColorReplacementOperation();
-        var newSelectedColors = new HashSet<uint>();
         var unchangedColors = new List<uint>();
 
         foreach (var currentArgb in selectedColors)
@@ -556,7 +557,6 @@ public sealed class MainViewModel : ObservableObject
                 TransparencyAdjustment);
             if (targetArgb == currentArgb)
             {
-                newSelectedColors.Add(currentArgb);
                 unchangedColors.Add(currentArgb);
                 continue;
             }
@@ -581,9 +581,6 @@ public sealed class MainViewModel : ObservableObject
                 operation.NewValues[sourceArgb] = targetArgb;
                 state.Replacements[sourceArgb] = targetArgb;
             }
-
-            // 完全透明になった色もパレットと選択状態へ残します。
-            newSelectedColors.Add(targetArgb);
         }
 
         if (operation.NewValues.Count == 0)
@@ -606,7 +603,6 @@ public sealed class MainViewModel : ObservableObject
             : null;
 
         state.SelectedColors.Clear();
-        state.SelectedColors.UnionWith(newSelectedColors);
         state.UndoStack.Push(operation);
         state.RedoStack.Clear();
         OnPropertyChanged(nameof(HasUnsavedChanges));
@@ -632,6 +628,8 @@ public sealed class MainViewModel : ObservableObject
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
         }
+
+        ColorAdjustmentApplied?.Invoke(this, EventArgs.Empty);
     }
 
     private bool CanApplyColorAdjustment()

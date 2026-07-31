@@ -19,8 +19,14 @@ public partial class ColorAdjustmentDialog : System.Windows.Window
     {
         if (DataContext is MainViewModel viewModel)
         {
+            viewModel.ColorAdjustmentApplied += ViewModel_ColorAdjustmentApplied;
             viewModel.BeginColorAdjustmentPreview();
         }
+    }
+
+    private void ViewModel_ColorAdjustmentApplied(object? sender, EventArgs e)
+    {
+        Close();
     }
 
     private void ColorAdjustmentDialog_Closing(
@@ -55,6 +61,7 @@ public partial class ColorAdjustmentDialog : System.Windows.Window
     {
         if (DataContext is MainViewModel viewModel)
         {
+            viewModel.ColorAdjustmentApplied -= ViewModel_ColorAdjustmentApplied;
             viewModel.EndColorAdjustmentPreview();
         }
     }
