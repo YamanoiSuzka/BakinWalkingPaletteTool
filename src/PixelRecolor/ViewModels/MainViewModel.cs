@@ -20,9 +20,12 @@ public sealed class MainViewModel : ObservableObject
     private CharacterGroup? _selectedCharacter;
     private SpriteFile? _selectedSpriteFile;
     private BitmapSource? _previewImage;
+    private BitmapSource? _adjustmentPreviewBaseImage;
     private string _currentFolder = "フォルダーが選択されていません";
     private string _statusMessage = "フォルダーを選択してください";
     private bool _isUpdatingSelectAll;
+    private bool _isAdjustmentPreviewActive;
+    private bool _isUpdatingAdjustments;
     private bool _areAllPaletteColorsSelected;
     private double _hueShift;
     private double _saturationAdjustment;
@@ -186,6 +189,31 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand ApplyColorAdjustmentCommand { get; }
 
     public RelayCommand ResetColorAdjustmentsCommand { get; }
+
+    /// <summary>
+    /// 色調整ダイアログを開いたとき、一時プレビューを有効にします。
+    /// この段階では置換マップやUNDO履歴を変更しません。
+    /// </summary>
+    public void BeginColorAdjustmentPreview()
+    {
+        _isAdjustmentPreviewActive = true;
+        _adjustmentPreviewBaseImage = PreviewImage;
+        RefreshAdjustmentPreview();
+    }
+
+    /// <summary>
+    /// 未適用の調整値を破棄し、最後に確定した画像へ戻します。
+    /// </summary>
+    public void EndColorAdjustmentPreview()
+    {
+        _isAdjustmentPreviewActive = false;
+        _isUpdatingAdjustments = true;
+        ResetColorAdjustments();
+        _isUpdatingAdjustments = false;
+        RefreshPreviewAndPalette();
+        _adjustmentPreviewBaseImage = null;
+        UpdateAdjustmentCommands();
+    }
 
     public void LoadFolder(string folderPath)
     {
@@ -537,8 +565,15 @@ public sealed class MainViewModel : ObservableObject
         state.SelectedColors.UnionWith(newSelectedColors);
         state.UndoStack.Push(operation);
         state.RedoStack.Clear();
+        _isUpdatingAdjustments = true;
         ResetColorAdjustments();
+        _isUpdatingAdjustments = false;
         RefreshPreviewAndPalette();
+        if (_isAdjustmentPreviewActive)
+        {
+            _adjustmentPreviewBaseImage = PreviewImage;
+        }
+
         StatusMessage = unchangedColors.Count == 0
             ? $"{changedColorCount}色へ調整を適用しました"
             : $"{changedColorCount}色を変更、{unchangedColors.Count}色は変化しませんでした";
@@ -875,6 +910,44 @@ public sealed class MainViewModel : ObservableObject
     {
         ApplyColorAdjustmentCommand.NotifyCanExecuteChanged();
         ResetColorAdjustmentsCommand.NotifyCanExecuteChanged();
+
+        if (_isAdjustmentPreviewActive && !_isUpdatingAdjustments)
+        {
+            RefreshAdjustmentPreview();
+        }
+    }
+
+    private void RefreshAdjustmentPreview()
+    {
+        if (!_isAdjustmentPreviewActive
+            || _adjustmentPreviewBaseImage is null)
+        {
+            return;
+        }
+
+        var temporaryReplacements = GetSelectedArgbValues()
+            .Select(sourceArgb => new
+            {
+                SourceArgb = sourceArgb,
+                TargetArgb = _imageAnalysisService.AdjustArgb(
+                    sourceArgb,
+                    HueShift,
+                    SaturationAdjustment,
+                    BrightnessAdjustment,
+                    TransparencyAdjustment)
+            })
+            .Where(replacement =>
+                replacement.SourceArgb != replacement.TargetArgb)
+            .ToDictionary(
+                replacement => replacement.SourceArgb,
+                replacement => replacement.TargetArgb);
+
+        PreviewImage = _imageAnalysisService.ApplyReplacements(
+            _adjustmentPreviewBaseImage,
+            temporaryReplacements);
+        StatusMessage = temporaryReplacements.Count == 0
+            ? "色調整プレビュー：変化なし"
+            : $"色調整プレビュー：{temporaryReplacements.Count}色を一時表示中";
     }
 
     private void UpdateSelectionState()

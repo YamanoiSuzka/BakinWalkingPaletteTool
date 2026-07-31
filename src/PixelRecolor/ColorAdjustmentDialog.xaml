@@ -27,7 +27,7 @@
             <Run Text="選択中の " />
             <Run FontWeight="SemiBold"
                  Text="{Binding SelectedColorCount, Mode=OneWay}" />
-            <Run Text=" 色へ、同じ調整をまとめて適用します。変更は同じキャラクターの全アニメーションに反映されます。" />
+            <Run Text=" 色へ、同じ調整をまとめて適用します。変更はプレビューへリアルタイムで表示され、適用せず閉じると元に戻ります。" />
         </TextBlock>
 
         <Border Grid.Row="2"
