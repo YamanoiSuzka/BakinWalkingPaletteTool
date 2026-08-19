@@ -20,6 +20,7 @@ public sealed class MainViewModel : ObservableObject
     private CharacterGroup? _selectedCharacter;
     private SpriteFile? _selectedSpriteFile;
     private BitmapSource? _previewImage;
+    private BitmapSource? _selectionOutlineSource;
     private BitmapSource? _adjustmentPreviewBaseImage;
     private string _currentFolder = "フォルダーが選択されていません";
     private string _statusMessage = "フォルダーを選択してください";
@@ -83,6 +84,12 @@ public sealed class MainViewModel : ObservableObject
     {
         get => _previewImage;
         private set => SetProperty(ref _previewImage, value);
+    }
+
+    public BitmapSource? SelectionOutlineSource
+    {
+        get => _selectionOutlineSource;
+        private set => SetProperty(ref _selectionOutlineSource, value);
     }
 
     public string CurrentFolder
@@ -954,6 +961,7 @@ public sealed class MainViewModel : ObservableObject
         var palette = _imageAnalysisService.ExtractPalette(displayedImage);
 
         PreviewImage = displayedImage;
+        SelectionOutlineSource = displayedImage;
         PaletteColors.Clear();
         foreach (var color in palette)
         {
@@ -1038,6 +1046,7 @@ public sealed class MainViewModel : ObservableObject
 
         SelectedSpriteFile = null;
         PreviewImage = null;
+        SelectionOutlineSource = null;
         PaletteColors.Clear();
         UpdateSelectionState();
         UpdateHistoryCommands();

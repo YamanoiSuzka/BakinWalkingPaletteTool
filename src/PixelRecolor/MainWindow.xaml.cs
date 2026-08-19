@@ -114,6 +114,7 @@ public partial class MainWindow : Window
         PreviewMatrixTransform.Matrix = matrix;
 
         _previewZoom = nextZoom;
+        SelectionOutlineControl.RefreshZoom(_previewZoom);
         PreviewZoomTextBlock.Text = $"{_previewZoom * 100:F0}%";
         e.Handled = true;
     }
@@ -140,6 +141,7 @@ public partial class MainWindow : Window
     private void ResetPreviewZoom()
     {
         _previewZoom = 1;
+        SelectionOutlineControl.RefreshZoom(_previewZoom);
         PreviewMatrixTransform.Matrix = Matrix.Identity;
         PreviewZoomTextBlock.Text = "100%";
     }
