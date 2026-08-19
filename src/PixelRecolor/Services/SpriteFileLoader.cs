@@ -68,20 +68,21 @@ public sealed class SpriteFileLoader
     /// PNGのファイル情報を作ります。
     /// 「キャラクター名_アニメーション名.png」に一致する場合は両要素を解析し、
     /// それ以外のPNGはファイル名全体を独立グループ名として扱います。
-    /// PNG以外の場合だけnullを返します。
+    /// PNG以外とサムネイル用の「thumb.png」「*.thumb.png」はnullを返します。
     /// </summary>
     public SpriteFile? TryParse(string filePath)
     {
-        if (!string.Equals(Path.GetExtension(filePath), ".png", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(Path.GetExtension(filePath), ".png", StringComparison.OrdinalIgnoreCase)
+            || IsThumbnailFile(filePath))
         {
             return null;
         }
 
         var nameWithoutExtension = Path.GetFileNameWithoutExtension(filePath);
 
-        // 最後の「_」を区切りにすることで、キャラクター名に「_」を含められます。
-        // 例: villager_red_wait.png → villager_red / wait
-        var separatorIndex = nameWithoutExtension.LastIndexOf('_');
+        // 最初の「_」を区切りにして、残りをすべてアニメーション名として扱います。
+        // 例: villager_red_wait.png → villager / red_wait
+        var separatorIndex = nameWithoutExtension.IndexOf('_');
 
         var isAnimationFile =
             separatorIndex > 0
@@ -109,6 +110,13 @@ public sealed class SpriteFileLoader
             AnimationName = nameWithoutExtension[(separatorIndex + 1)..],
             IsAnimationFile = true
         };
+    }
+
+    private static bool IsThumbnailFile(string filePath)
+    {
+        var fileName = Path.GetFileName(filePath);
+        return fileName.Equals("thumb.png", StringComparison.OrdinalIgnoreCase)
+            || fileName.EndsWith(".thumb.png", StringComparison.OrdinalIgnoreCase);
     }
 
     private static CharacterGroup CreateCharacterGroup(
