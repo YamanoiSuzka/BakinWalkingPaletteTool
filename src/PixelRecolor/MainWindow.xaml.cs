@@ -14,6 +14,8 @@ public partial class MainWindow : Window
     private const double MaximumPreviewZoom = 16;
     private const double PreviewZoomStep = 1.2;
     private double _previewZoom = 1;
+    private bool _isPreviewPanning;
+    private System.Windows.Point _previewPanLastPosition;
 
     public MainWindow()
     {
@@ -114,9 +116,94 @@ public partial class MainWindow : Window
         PreviewMatrixTransform.Matrix = matrix;
 
         _previewZoom = nextZoom;
+        if (Math.Abs(_previewZoom - 1) < 0.0001)
+        {
+            // 拡大表示を終えたときは、パンで動かした位置も中央へ戻します。
+            PreviewMatrixTransform.Matrix = Matrix.Identity;
+        }
+
         SelectionOutlineControl.RefreshZoom(_previewZoom);
         PreviewZoomTextBlock.Text = $"{_previewZoom * 100:F0}%";
         e.Handled = true;
+    }
+
+    private void PreviewViewport_PreviewMouseDown(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Middle
+            || _previewZoom <= 1
+            || PreviewImageControl.Source is null)
+        {
+            return;
+        }
+
+        _isPreviewPanning = PreviewViewport.CaptureMouse();
+        if (!_isPreviewPanning)
+        {
+            return;
+        }
+
+        _previewPanLastPosition = e.GetPosition(PreviewViewport);
+        PreviewViewport.Cursor = System.Windows.Input.Cursors.SizeAll;
+        e.Handled = true;
+    }
+
+    private void PreviewViewport_PreviewMouseMove(
+        object sender,
+        System.Windows.Input.MouseEventArgs e)
+    {
+        if (!_isPreviewPanning)
+        {
+            return;
+        }
+
+        if (e.MiddleButton != MouseButtonState.Pressed)
+        {
+            EndPreviewPan();
+            return;
+        }
+
+        var currentPosition = e.GetPosition(PreviewViewport);
+        var offset = currentPosition - _previewPanLastPosition;
+        var matrix = PreviewMatrixTransform.Matrix;
+
+        // Offsetへ画面座標の移動量を加え、拡大率に関係なく
+        // マウスと同じ距離だけプレビューを動かします。
+        matrix.OffsetX += offset.X;
+        matrix.OffsetY += offset.Y;
+        PreviewMatrixTransform.Matrix = matrix;
+        _previewPanLastPosition = currentPosition;
+        e.Handled = true;
+    }
+
+    private void PreviewViewport_PreviewMouseUp(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Middle && _isPreviewPanning)
+        {
+            EndPreviewPan();
+            e.Handled = true;
+        }
+    }
+
+    private void PreviewViewport_LostMouseCapture(
+        object sender,
+        System.Windows.Input.MouseEventArgs e)
+    {
+        _isPreviewPanning = false;
+        PreviewViewport.Cursor = null;
+    }
+
+    private void EndPreviewPan()
+    {
+        _isPreviewPanning = false;
+        PreviewViewport.Cursor = null;
+        if (PreviewViewport.IsMouseCaptured)
+        {
+            PreviewViewport.ReleaseMouseCapture();
+        }
     }
 
     private void MainViewModel_PropertyChanged(
@@ -140,6 +227,7 @@ public partial class MainWindow : Window
 
     private void ResetPreviewZoom()
     {
+        EndPreviewPan();
         _previewZoom = 1;
         SelectionOutlineControl.RefreshZoom(_previewZoom);
         PreviewMatrixTransform.Matrix = Matrix.Identity;
