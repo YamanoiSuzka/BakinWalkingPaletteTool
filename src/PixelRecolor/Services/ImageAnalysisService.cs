@@ -12,10 +12,49 @@ namespace PixelRecolor.Services;
 public sealed class ImageAnalysisService
 {
     /// <summary>
+    /// UIを長時間停止させないために読み込みを許可する最大ピクセル数です。
+    /// </summary>
+    public const long MaximumPixelCount = 1_048_576;
+
+    /// <summary>
+    /// パレット用UIを安全に生成できる最大使用色数です。
+    /// </summary>
+    public const int MaximumPaletteColorCount = 1_024;
+
+    /// <summary>
+    /// PNG全体を展開せず、ヘッダーから画像サイズを取得します。
+    /// </summary>
+    public (int Width, int Height, long PixelCount) GetImageDimensions(
+        string filePath)
+    {
+        using var stream = new FileStream(
+            filePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite);
+        var decoder = BitmapDecoder.Create(
+            stream,
+            BitmapCreateOptions.PreservePixelFormat | BitmapCreateOptions.DelayCreation,
+            BitmapCacheOption.None);
+        var frame = decoder.Frames[0];
+        var pixelCount = checked((long)frame.PixelWidth * frame.PixelHeight);
+        return (frame.PixelWidth, frame.PixelHeight, pixelCount);
+    }
+
+    /// <summary>
     /// ファイルをロックし続けないよう、デコード結果をメモリへ読み切って返します。
     /// </summary>
     public BitmapSource LoadImage(string filePath)
     {
+        var dimensions = GetImageDimensions(filePath);
+        if (dimensions.PixelCount > MaximumPixelCount)
+        {
+            throw new InvalidOperationException(
+                $"画像サイズが上限を超えています。"
+                + $"（{dimensions.Width:N0}×{dimensions.Height:N0}px、"
+                + $"{dimensions.PixelCount:N0}ピクセル／上限{MaximumPixelCount:N0}ピクセル）");
+        }
+
         using var stream = new FileStream(
             filePath,
             FileMode.Open,
@@ -63,7 +102,20 @@ public sealed class ImageAnalysisService
                 | ((uint)green << 8)
                 | blue;
 
-            counts[argb] = counts.GetValueOrDefault(argb) + 1;
+            if (counts.TryGetValue(argb, out var currentCount))
+            {
+                counts[argb] = currentCount + 1;
+                continue;
+            }
+
+            if (counts.Count >= MaximumPaletteColorCount)
+            {
+                throw new InvalidOperationException(
+                    $"画像の使用色数が上限を超えています。"
+                    + $"（上限{MaximumPaletteColorCount:N0}色）");
+            }
+
+            counts[argb] = 1;
         }
 
         return counts
@@ -79,6 +131,50 @@ public sealed class ImageAnalysisService
                 PixelCount = entry.Value
             })
             .ToList();
+    }
+
+    /// <summary>
+    /// 指定数に到達するまで使用色を数えます。
+    /// 上限検査では全色を保持せず、超過が判明した時点で走査を終了します。
+    /// </summary>
+    public int CountDistinctColors(BitmapSource source, int stopAfter)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(stopAfter);
+
+        var converted = new FormatConvertedBitmap(
+            source,
+            PixelFormats.Bgra32,
+            null,
+            0);
+        var stride = checked(converted.PixelWidth * 4);
+        var pixels = new byte[checked(stride * converted.PixelHeight)];
+        converted.CopyPixels(pixels, stride, 0);
+
+        var colors = new HashSet<uint>();
+        for (var index = 0; index < pixels.Length; index += 4)
+        {
+            var blue = pixels[index];
+            var green = pixels[index + 1];
+            var red = pixels[index + 2];
+            var alpha = pixels[index + 3];
+
+            if (blue == 0 && green == 0 && red == 0 && alpha == 0)
+            {
+                continue;
+            }
+
+            var argb = ((uint)alpha << 24)
+                | ((uint)red << 16)
+                | ((uint)green << 8)
+                | blue;
+            colors.Add(argb);
+            if (colors.Count >= stopAfter)
+            {
+                return colors.Count;
+            }
+        }
+
+        return colors.Count;
     }
 
     /// <summary>

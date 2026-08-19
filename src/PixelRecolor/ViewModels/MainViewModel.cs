@@ -243,7 +243,14 @@ public sealed class MainViewModel : ObservableObject
     {
         try
         {
-            var groups = _spriteFileLoader.LoadFromFolder(folderPath);
+            var groups = FilterUnsupportedImages(
+                _spriteFileLoader.LoadFromFolder(folderPath),
+                out var rejectedImageCount);
+            if (groups.Count == 0 && rejectedImageCount > 0)
+            {
+                return;
+            }
+
             if (!ConfirmDiscardUnsavedChanges("別のフォルダーを読み込む"))
             {
                 return;
@@ -254,7 +261,9 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception exception) when (
             exception is IOException
             or UnauthorizedAccessException
-            or ArgumentException)
+            or ArgumentException
+            or InvalidOperationException
+            or NotSupportedException)
         {
             System.Windows.MessageBox.Show(
                 exception.Message,
@@ -275,7 +284,14 @@ public sealed class MainViewModel : ObservableObject
                     filePath);
             }
 
-            var groups = _spriteFileLoader.LoadFiles([filePath]);
+            var groups = FilterUnsupportedImages(
+                _spriteFileLoader.LoadFiles([filePath]),
+                out var rejectedImageCount);
+            if (groups.Count == 0 && rejectedImageCount > 0)
+            {
+                return;
+            }
+
             if (!ConfirmDiscardUnsavedChanges("別のPNGを読み込む"))
             {
                 return;
@@ -286,7 +302,9 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception exception) when (
             exception is IOException
             or UnauthorizedAccessException
-            or ArgumentException)
+            or ArgumentException
+            or InvalidOperationException
+            or NotSupportedException)
         {
             System.Windows.MessageBox.Show(
                 exception.Message,
@@ -335,6 +353,110 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(HasUnsavedChanges));
     }
 
+    private IReadOnlyList<CharacterGroup> FilterUnsupportedImages(
+        IReadOnlyList<CharacterGroup> groups,
+        out int rejectedImageCount)
+    {
+        var oversizedImages = new List<(
+            SpriteFile File,
+            int Width,
+            int Height,
+            long PixelCount)>();
+        var excessiveColorImages = new List<SpriteFile>();
+
+        foreach (var group in groups)
+        {
+            foreach (var file in group.Files.ToList())
+            {
+                var dimensions = _imageAnalysisService.GetImageDimensions(
+                    file.FilePath);
+                if (dimensions.PixelCount > ImageAnalysisService.MaximumPixelCount)
+                {
+                    oversizedImages.Add((
+                        file,
+                        dimensions.Width,
+                        dimensions.Height,
+                        dimensions.PixelCount));
+                    group.Files.Remove(file);
+                    continue;
+                }
+
+                // パレットボタンを生成する前に使用色を数え、超過が判明した時点で
+                // 走査を打ち切ることで、大量のUI生成による停止を防ぎます。
+                var image = _imageAnalysisService.LoadImage(file.FilePath);
+                var colorCount = _imageAnalysisService.CountDistinctColors(
+                    image,
+                    ImageAnalysisService.MaximumPaletteColorCount + 1);
+                if (colorCount > ImageAnalysisService.MaximumPaletteColorCount)
+                {
+                    excessiveColorImages.Add(file);
+                    group.Files.Remove(file);
+                }
+            }
+        }
+
+        if (oversizedImages.Count == 0 && excessiveColorImages.Count == 0)
+        {
+            rejectedImageCount = 0;
+            return groups;
+        }
+
+        rejectedImageCount = oversizedImages.Count + excessiveColorImages.Count;
+
+        const int displayedFileLimit = 5;
+        if (oversizedImages.Count > 0)
+        {
+            var fileDetails = string.Join(
+                "\n",
+                oversizedImages
+                    .Take(displayedFileLimit)
+                    .Select(image =>
+                        $"・{image.File.FileName} "
+                        + $"({image.Width:N0}×{image.Height:N0}px、"
+                        + $"{image.PixelCount:N0}ピクセル)"));
+            var omittedFileMessage = oversizedImages.Count > displayedFileLimit
+                ? $"\nほか {oversizedImages.Count - displayedFileLimit:N0}ファイル"
+                : string.Empty;
+
+            System.Windows.MessageBox.Show(
+                $"次のPNGはピクセル数の上限を超えているため、読み込みません。\n\n"
+                + $"上限：{ImageAnalysisService.MaximumPixelCount:N0}ピクセル "
+                + "（1024×1024相当）\n\n"
+                + fileDetails
+                + omittedFileMessage,
+                "画像サイズが上限を超えています",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+
+        if (excessiveColorImages.Count > 0)
+        {
+            var fileDetails = string.Join(
+                "\n",
+                excessiveColorImages
+                    .Take(displayedFileLimit)
+                    .Select(file => $"・{file.FileName}"));
+            var omittedFileMessage = excessiveColorImages.Count > displayedFileLimit
+                ? $"\nほか {excessiveColorImages.Count - displayedFileLimit:N0}ファイル"
+                : string.Empty;
+
+            System.Windows.MessageBox.Show(
+                $"次のPNGは使用色数の上限を超えているため、読み込みません。\n\n"
+                + $"上限：{ImageAnalysisService.MaximumPaletteColorCount:N0}色\n\n"
+                + fileDetails
+                + omittedFileMessage
+                + "\n\n写真、グラデーション、アンチエイリアスを多用した画像では、"
+                + "見た目以上に使用色が多くなる場合があります。",
+                "使用色数が上限を超えています",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+
+        return groups
+            .Where(group => group.Files.Count > 0)
+            .ToList();
+    }
+
     public bool ConfirmDiscardUnsavedChanges(string actionDescription)
     {
         if (!HasUnsavedChanges)
@@ -371,6 +493,7 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception exception) when (
             exception is IOException
             or UnauthorizedAccessException
+            or InvalidOperationException
             or NotSupportedException)
         {
             System.Windows.MessageBox.Show(
