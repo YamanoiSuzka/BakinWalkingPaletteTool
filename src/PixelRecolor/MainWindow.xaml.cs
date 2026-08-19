@@ -103,16 +103,23 @@ public partial class MainWindow : Window
             return;
         }
 
-        // GetPositionはRenderTransform適用前の画像座標を返します。
-        // その点を中心に前置スケールすることで、カーソル下のドットを
-        // できるだけ同じ画面位置に保ったまま拡大縮小します。
-        var zoomCenter = e.GetPosition(PreviewImageControl);
+        // カーソル直下にある変換前の画像座標と、その現在の表示位置を求めます。
+        // 拡大率を変更した後、同じ画像座標が同じ表示位置へ来るようOffsetを
+        // 再計算することで、連続して拡大しても基準点がずれないようにします。
+        var zoomCenter = e.GetPosition(PreviewTransformContainer);
         var matrix = PreviewMatrixTransform.Matrix;
-        matrix.ScaleAtPrepend(
-            actualFactor,
-            actualFactor,
-            zoomCenter.X,
-            zoomCenter.Y);
+        var displayedZoomCenter = matrix.Transform(zoomCenter);
+
+        matrix.M11 *= actualFactor;
+        matrix.M12 *= actualFactor;
+        matrix.M21 *= actualFactor;
+        matrix.M22 *= actualFactor;
+        matrix.OffsetX = displayedZoomCenter.X
+            - zoomCenter.X * matrix.M11
+            - zoomCenter.Y * matrix.M21;
+        matrix.OffsetY = displayedZoomCenter.Y
+            - zoomCenter.X * matrix.M12
+            - zoomCenter.Y * matrix.M22;
         PreviewMatrixTransform.Matrix = matrix;
 
         _previewZoom = nextZoom;

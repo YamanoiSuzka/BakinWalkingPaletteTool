@@ -273,7 +273,8 @@
                             </DrawingBrush>
                         </Border.Background>
                         <Grid>
-                            <Grid Margin="16">
+                            <Grid x:Name="PreviewTransformContainer"
+                                  Margin="16">
                                 <Grid.RenderTransform>
                                     <MatrixTransform x:Name="PreviewMatrixTransform" />
                                 </Grid.RenderTransform>
