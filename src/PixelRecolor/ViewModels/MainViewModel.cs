@@ -518,7 +518,50 @@ public sealed class MainViewModel : ObservableObject
             Owner = System.Windows.Application.Current.MainWindow
         };
 
-        if (dialog.ShowDialog() != true)
+        // 操作中は置換マップやUNDO履歴を変更せず、表示中の画像にだけ
+        // 一時的な置換を適用してカラーピッカーの結果を確認できるようにします。
+        var previewBaseImage = PreviewImage;
+        var previousStatusMessage = StatusMessage;
+        void PreviewSelectedColor(System.Windows.Media.Color color)
+        {
+            if (previewBaseImage is null)
+            {
+                return;
+            }
+
+            var previewArgb = ((uint)color.A << 24)
+                | ((uint)color.R << 16)
+                | ((uint)color.G << 8)
+                | color.B;
+            PreviewImage = previewArgb == paletteColor.ArgbKey
+                ? previewBaseImage
+                : _imageAnalysisService.ApplyReplacements(
+                    previewBaseImage,
+                    new Dictionary<uint, uint>
+                    {
+                        [paletteColor.ArgbKey] = previewArgb
+                    });
+            StatusMessage = previewArgb == paletteColor.ArgbKey
+                ? "色置換プレビュー：変化なし"
+                : "色置換プレビューを一時表示中";
+        }
+
+        dialog.SelectedColorChanged += PreviewSelectedColor;
+        bool? dialogResult = null;
+        try
+        {
+            dialogResult = dialog.ShowDialog();
+        }
+        finally
+        {
+            dialog.SelectedColorChanged -= PreviewSelectedColor;
+            // OK・キャンセルのどちらでも確定済みの表示へいったん戻します。
+            // OKの場合は、この後の通常処理で正式な置換結果を再描画します。
+            PreviewImage = previewBaseImage;
+            StatusMessage = previousStatusMessage;
+        }
+
+        if (dialogResult != true)
         {
             return;
         }

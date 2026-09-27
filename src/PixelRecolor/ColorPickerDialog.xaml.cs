@@ -26,6 +26,7 @@ public partial class ColorPickerDialog : Window
     private double _saturation;
     private double _value;
     private bool _isUpdatingControls = true;
+    private bool _canRaiseChanges;
     private PickerPart _activePicker;
 
     public ColorPickerDialog(MediaColor initialColor)
@@ -43,8 +44,14 @@ public partial class ColorPickerDialog : Window
 
     public MediaColor SelectedColor => _selectedColor;
 
+    /// <summary>
+    /// ピッカーまたは有効な数値入力で選択色が変わるたびに発生します。
+    /// </summary>
+    public event Action<MediaColor>? SelectedColorChanged;
+
     private void ColorPickerDialog_Loaded(object sender, RoutedEventArgs e)
     {
+        _canRaiseChanges = true;
         UpdatePickerVisuals();
         FocusActiveInput();
     }
@@ -157,6 +164,7 @@ public partial class ColorPickerDialog : Window
         }
 
         UpdateAllControls();
+        RaiseSelectedColorChanged();
     }
 
     private void InputModeRadioButton_Checked(object sender, RoutedEventArgs e)
@@ -274,6 +282,15 @@ public partial class ColorPickerDialog : Window
         _isUpdatingControls = false;
         ValidationMessageTextBlock.Text = string.Empty;
         UpdatePickerVisuals();
+        RaiseSelectedColorChanged();
+    }
+
+    private void RaiseSelectedColorChanged()
+    {
+        if (_canRaiseChanges)
+        {
+            SelectedColorChanged?.Invoke(_selectedColor);
+        }
     }
 
     private void SetInputMode(ColorInputMode mode)

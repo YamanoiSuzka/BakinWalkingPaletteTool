@@ -41,7 +41,7 @@
         <TextBlock Grid.Row="1"
                    Margin="0,6,0,16"
                    Foreground="#FF667085"
-                   Text="カラーピッカーまたは数値入力で色を指定できます。" />
+                   Text="変更はメイン画面のプレビューへリアルタイムで表示されます。" />
 
         <!-- 彩度（横方向）と明度（縦方向）を指定する2次元エリアです。 -->
         <Grid x:Name="SaturationValuePicker"
