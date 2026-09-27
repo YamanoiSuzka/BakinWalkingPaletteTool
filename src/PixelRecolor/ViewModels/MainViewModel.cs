@@ -511,26 +511,21 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        using var dialog = new System.Windows.Forms.ColorDialog
+        var dialog = new ColorPickerDialog(paletteColor.Color)
         {
-            AllowFullOpen = true,
-            AnyColor = true,
-            FullOpen = true,
-            Color = System.Drawing.Color.FromArgb(
-                paletteColor.Color.R,
-                paletteColor.Color.G,
-                paletteColor.Color.B)
+            Owner = System.Windows.Application.Current.MainWindow
         };
 
-        if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+        if (dialog.ShowDialog() != true)
         {
             return;
         }
 
-        var targetArgb = ((uint)paletteColor.Color.A << 24)
-            | ((uint)dialog.Color.R << 16)
-            | ((uint)dialog.Color.G << 8)
-            | dialog.Color.B;
+        var selectedColor = dialog.SelectedColor;
+        var targetArgb = ((uint)selectedColor.A << 24)
+            | ((uint)selectedColor.R << 16)
+            | ((uint)selectedColor.G << 8)
+            | selectedColor.B;
 
         if (targetArgb == paletteColor.ArgbKey)
         {
