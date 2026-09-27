@@ -214,6 +214,18 @@ public partial class MainWindow : Window
         object sender,
         MouseButtonEventArgs e)
     {
+        // 画像そのものではなくプレビュー領域の余白を左クリックした場合も、
+        // 透明ピクセルをクリックしたときと同様に色選択を解除します。
+        if (e.ChangedButton == MouseButton.Left
+            && DataContext is MainViewModel viewModel
+            && !TryGetPreviewPixel(e, out _, out _))
+        {
+            viewModel.ClearPaletteColorSelection(
+                "プレビューの画像外をクリックしたため、色の選択をすべて解除しました");
+            e.Handled = true;
+            return;
+        }
+
         if (e.ChangedButton != MouseButton.Middle
             || _previewZoom <= 1
             || PreviewImageControl.Source is null)

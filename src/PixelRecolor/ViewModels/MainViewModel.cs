@@ -285,7 +285,9 @@ public sealed class MainViewModel : ObservableObject
             }
 
             var groups = FilterUnsupportedImages(
-                _spriteFileLoader.LoadFiles([filePath]),
+                _spriteFileLoader.LoadFiles(
+                    [filePath],
+                    treatSingleFileAsStandalone: true),
                 out var rejectedImageCount);
             if (groups.Count == 0 && rejectedImageCount > 0)
             {
@@ -610,8 +612,8 @@ public sealed class MainViewModel : ObservableObject
         var argb = _imageAnalysisService.GetArgbAt(PreviewImage, x, y);
         if ((argb >> 24) == 0)
         {
-            SetAllPaletteColorsSelected(false);
-            StatusMessage = "透明ピクセルをクリックしたため、色の選択をすべて解除しました";
+            ClearPaletteColorSelection(
+                "透明ピクセルをクリックしたため、色の選択をすべて解除しました");
             return;
         }
 
@@ -632,6 +634,18 @@ public sealed class MainViewModel : ObservableObject
         if (paletteColor is not null)
         {
             TogglePaletteColorSelection(paletteColor);
+        }
+    }
+
+    /// <summary>
+    /// プレビューの画像外をクリックしたときなどに、現在の色選択をすべて解除します。
+    /// </summary>
+    public void ClearPaletteColorSelection(string? statusMessage = null)
+    {
+        SetAllPaletteColorsSelected(false);
+        if (!string.IsNullOrWhiteSpace(statusMessage))
+        {
+            StatusMessage = statusMessage;
         }
     }
 

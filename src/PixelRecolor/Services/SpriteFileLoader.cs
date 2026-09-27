@@ -30,12 +30,19 @@ public sealed class SpriteFileLoader
 
     /// <summary>
     /// 指定した複数のパスからPNGを読み込み、命名規則に応じてグループ化します。
+    /// PNG選択で1ファイルだけ開く場合は、ファイル名全体を単体画像名として扱えます。
     /// 命名規則に合わないPNGは、他画像へ色変更を波及させない独立グループにします。
     /// </summary>
-    public IReadOnlyList<CharacterGroup> LoadFiles(IEnumerable<string> filePaths)
+    public IReadOnlyList<CharacterGroup> LoadFiles(
+        IEnumerable<string> filePaths,
+        bool treatSingleFileAsStandalone = false)
     {
-        var spriteFiles = filePaths
-            .Select(TryParse)
+        var paths = filePaths.ToList();
+        var parseAnimationName =
+            !treatSingleFileAsStandalone || paths.Count != 1;
+
+        var spriteFiles = paths
+            .Select(path => TryParse(path, parseAnimationName))
             .OfType<SpriteFile>()
             .OrderBy(file => file.CharacterName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(file => file.AnimationName, StringComparer.OrdinalIgnoreCase)
@@ -70,7 +77,9 @@ public sealed class SpriteFileLoader
     /// それ以外のPNGはファイル名全体を独立グループ名として扱います。
     /// PNG以外とサムネイル用の「thumb.png」「*.thumb.png」はnullを返します。
     /// </summary>
-    public SpriteFile? TryParse(string filePath)
+    public SpriteFile? TryParse(
+        string filePath,
+        bool parseAnimationName = true)
     {
         if (!string.Equals(Path.GetExtension(filePath), ".png", StringComparison.OrdinalIgnoreCase)
             || IsThumbnailFile(filePath))
@@ -85,7 +94,8 @@ public sealed class SpriteFileLoader
         var separatorIndex = nameWithoutExtension.IndexOf('_');
 
         var isAnimationFile =
-            separatorIndex > 0
+            parseAnimationName
+            && separatorIndex > 0
             && separatorIndex < nameWithoutExtension.Length - 1;
 
         if (!isAnimationFile)
