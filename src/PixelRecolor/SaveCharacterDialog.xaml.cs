@@ -5,14 +5,10 @@ namespace PixelRecolor;
 
 public partial class SaveCharacterDialog : System.Windows.Window
 {
-    private readonly string _originalCharacterName;
-
     public SaveCharacterDialog(
-        string originalCharacterName,
         string initialCharacterName,
         string initialOutputFolder)
     {
-        _originalCharacterName = originalCharacterName;
         InitializeComponent();
         CharacterNameTextBox.Text = initialCharacterName;
         OutputFolderTextBox.Text = initialOutputFolder;
@@ -76,13 +72,6 @@ public partial class SaveCharacterDialog : System.Windows.Window
         if (string.IsNullOrWhiteSpace(characterName))
         {
             message = "新しいキャラクター名を入力してください。";
-        }
-        else if (string.Equals(
-            characterName,
-            _originalCharacterName,
-            StringComparison.OrdinalIgnoreCase))
-        {
-            message = "元の名前とは異なる名前を入力してください。";
         }
         else if (characterName is "." or ".."
             || characterName.EndsWith(' ')

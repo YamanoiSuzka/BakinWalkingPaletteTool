@@ -607,7 +607,21 @@ public sealed class MainViewModel : ObservableObject
     /// </summary>
     public void OpenPreviewPixelColorPicker(int x, int y)
     {
-        var paletteColor = GetPreviewPaletteColor(x, y);
+        if (PreviewImage is null)
+        {
+            return;
+        }
+
+        var argb = _imageAnalysisService.GetArgbAt(PreviewImage, x, y);
+        if ((argb >> 24) == 0)
+        {
+            SetAllPaletteColorsSelected(false);
+            StatusMessage = "透明ピクセルをクリックしたため、色の選択をすべて解除しました";
+            return;
+        }
+
+        var paletteColor = PaletteColors.FirstOrDefault(
+            color => color.ArgbKey == argb);
         if (paletteColor is not null)
         {
             SelectPaletteColor(paletteColor);
@@ -964,7 +978,6 @@ public sealed class MainViewModel : ObservableObject
 
         var dialog = new SaveCharacterDialog(
             SelectedCharacter.CharacterName,
-            $"{SelectedCharacter.CharacterName}-variant",
             Path.GetDirectoryName(SelectedSpriteFile?.FilePath) is { } sourceFolder
                 && Directory.Exists(sourceFolder)
                 ? sourceFolder

@@ -9,7 +9,10 @@
         Height="720"
         MinWidth="800"
         MinHeight="520"
+        AllowDrop="True"
         WindowStartupLocation="CenterScreen"
+        PreviewDragOver="MainWindow_PreviewDragOver"
+        Drop="MainWindow_Drop"
         Closing="MainWindow_Closing">
     <Window.Resources>
         <converters:SubtractValueConverter x:Key="SubtractValueConverter" />
@@ -242,7 +245,7 @@
                                            FontSize="15"
                                            Text="&#xE74E;" />
                                 <TextBlock VerticalAlignment="Center"
-                                           Text="別名保存する" />
+                                           Text="保存する" />
                             </StackPanel>
                         </Button>
                     </Grid>

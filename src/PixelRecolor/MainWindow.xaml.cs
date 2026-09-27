@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -23,6 +24,81 @@ public partial class MainWindow : Window
         var viewModel = new MainViewModel();
         viewModel.PropertyChanged += MainViewModel_PropertyChanged;
         DataContext = viewModel;
+    }
+
+    private void MainWindow_PreviewDragOver(
+        object sender,
+        System.Windows.DragEventArgs e)
+    {
+        var paths = GetDroppedPaths(e.Data);
+        e.Effects = paths.Length == 1 && IsSupportedDropPath(paths[0])
+            ? System.Windows.DragDropEffects.Copy
+            : System.Windows.DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void MainWindow_Drop(
+        object sender,
+        System.Windows.DragEventArgs e)
+    {
+        var paths = GetDroppedPaths(e.Data);
+        e.Handled = true;
+
+        if (paths.Length != 1)
+        {
+            System.Windows.MessageBox.Show(
+                "PNGファイルまたはフォルダーを1つだけドロップしてください。",
+                "ドラッグ＆ドロップ",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var path = paths[0];
+        if (Directory.Exists(path))
+        {
+            viewModel.LoadFolder(path);
+            return;
+        }
+
+        if (File.Exists(path)
+            && string.Equals(
+                Path.GetExtension(path),
+                ".png",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            viewModel.LoadFile(path);
+            return;
+        }
+
+        System.Windows.MessageBox.Show(
+            "読み込めるのはPNGファイルまたはフォルダーです。",
+            "対応していない項目です",
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
+    }
+
+    private static string[] GetDroppedPaths(System.Windows.IDataObject data)
+    {
+        return data.GetDataPresent(System.Windows.DataFormats.FileDrop)
+            && data.GetData(System.Windows.DataFormats.FileDrop) is string[] paths
+                ? paths
+                : [];
+    }
+
+    private static bool IsSupportedDropPath(string path)
+    {
+        return Directory.Exists(path)
+            || File.Exists(path)
+            && string.Equals(
+                Path.GetExtension(path),
+                ".png",
+                StringComparison.OrdinalIgnoreCase);
     }
 
     private void PaletteButton_PreviewMouseRightButtonDown(
